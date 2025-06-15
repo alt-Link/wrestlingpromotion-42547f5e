@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,7 @@ export const RosterManager = () => {
   const [filterAlignment, setFilterAlignment] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingWrestler, setEditingWrestler] = useState<Wrestler | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const [newWrestler, setNewWrestler] = useState<Partial<Wrestler>>({
@@ -52,6 +52,47 @@ export const RosterManager = () => {
   const saveWrestlers = (updatedWrestlers: Wrestler[]) => {
     setWrestlers(updatedWrestlers);
     localStorage.setItem("wrestlers", JSON.stringify(updatedWrestlers));
+  };
+
+  const editWrestler = (wrestler: Wrestler) => {
+    setEditingWrestler({...wrestler});
+    setIsEditDialogOpen(true);
+  };
+
+  const saveEditedWrestler = () => {
+    if (!editingWrestler?.name?.trim()) {
+      toast({
+        title: "Error",
+        description: "Wrestler name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const updatedWrestlers = wrestlers.map(w => 
+      w.id === editingWrestler.id ? editingWrestler : w
+    );
+    saveWrestlers(updatedWrestlers);
+    
+    setEditingWrestler(null);
+    setIsEditDialogOpen(false);
+    
+    toast({
+      title: "Wrestler Updated",
+      description: `${editingWrestler.name} has been updated.`
+    });
+  };
+
+  const releaseWrestler = (id: string) => {
+    const wrestler = wrestlers.find(w => w.id === id);
+    if (wrestler) {
+      const updatedWrestlers = wrestlers.filter(w => w.id !== id);
+      saveWrestlers(updatedWrestlers);
+      toast({
+        title: "Wrestler Released",
+        description: `${wrestler.name} has been released from the roster.`
+      });
+    }
   };
 
   const addWrestler = () => {
@@ -230,6 +271,112 @@ export const RosterManager = () => {
         </Dialog>
       </div>
 
+      {/* Edit Wrestler Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="bg-slate-800 border-purple-500/30">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Wrestler</DialogTitle>
+          </DialogHeader>
+          {editingWrestler && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="editName" className="text-purple-200">Name</Label>
+                <Input
+                  id="editName"
+                  value={editingWrestler.name}
+                  onChange={(e) => setEditingWrestler({...editingWrestler, name: e.target.value})}
+                  className="bg-slate-700 border-purple-500/30 text-white"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-purple-200">Brand</Label>
+                  <Select value={editingWrestler.brand} onValueChange={(value) => setEditingWrestler({...editingWrestler, brand: value})}>
+                    <SelectTrigger className="bg-slate-700 border-purple-500/30 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-purple-500/30">
+                      <SelectItem value="Raw">Raw</SelectItem>
+                      <SelectItem value="SmackDown">SmackDown</SelectItem>
+                      <SelectItem value="NXT">NXT</SelectItem>
+                      <SelectItem value="Legends">Legends</SelectItem>
+                      <SelectItem value="Free Agent">Free Agent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-purple-200">Alignment</Label>
+                  <Select value={editingWrestler.alignment} onValueChange={(value) => setEditingWrestler({...editingWrestler, alignment: value})}>
+                    <SelectTrigger className="bg-slate-700 border-purple-500/30 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-purple-500/30">
+                      <SelectItem value="Face">Face</SelectItem>
+                      <SelectItem value="Heel">Heel</SelectItem>
+                      <SelectItem value="Neutral">Neutral</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label className="text-purple-200">Gender</Label>
+                <Select value={editingWrestler.gender} onValueChange={(value) => setEditingWrestler({...editingWrestler, gender: value})}>
+                  <SelectTrigger className="bg-slate-700 border-purple-500/30 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-purple-500/30">
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="editManager" className="text-purple-200">Manager (Optional)</Label>
+                  <Input
+                    id="editManager"
+                    value={editingWrestler.manager || ""}
+                    onChange={(e) => setEditingWrestler({...editingWrestler, manager: e.target.value})}
+                    className="bg-slate-700 border-purple-500/30 text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="editFaction" className="text-purple-200">Faction (Optional)</Label>
+                  <Input
+                    id="editFaction"
+                    value={editingWrestler.faction || ""}
+                    onChange={(e) => setEditingWrestler({...editingWrestler, faction: e.target.value})}
+                    className="bg-slate-700 border-purple-500/30 text-white"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="editInjured"
+                  checked={editingWrestler.injured}
+                  onChange={(e) => setEditingWrestler({...editingWrestler, injured: e.target.checked})}
+                  className="rounded border-purple-500/30"
+                />
+                <Label htmlFor="editInjured" className="text-purple-200">Injured</Label>
+              </div>
+              <div className="flex space-x-3">
+                <Button onClick={saveEditedWrestler} className="flex-1 bg-purple-600 hover:bg-purple-700">
+                  Save Changes
+                </Button>
+                <Button 
+                  onClick={() => releaseWrestler(editingWrestler.id)} 
+                  variant="destructive" 
+                  className="flex-1"
+                >
+                  Release Wrestler
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-4">
         <div className="relative">
@@ -275,7 +422,12 @@ export const RosterManager = () => {
               <div className="flex justify-between items-start">
                 <CardTitle className="text-white text-lg">{wrestler.name}</CardTitle>
                 <div className="flex space-x-2">
-                  <Button size="sm" variant="ghost" className="text-purple-400 hover:bg-purple-500/20">
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-purple-400 hover:bg-purple-500/20"
+                    onClick={() => editWrestler(wrestler)}
+                  >
                     <Edit className="w-4 h-4" />
                   </Button>
                   <Button 

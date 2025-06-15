@@ -1,10 +1,130 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Plus, Clock, Users } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar, Plus, Clock, Users, Edit, Trash2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+
+interface Show {
+  id: string;
+  name: string;
+  brand: string;
+  date?: Date;
+  frequency: string;
+  venue: string;
+  description: string;
+  matches: Match[];
+}
+
+interface Match {
+  id: string;
+  type: string;
+  participants: string[];
+  result?: string;
+  notes?: string;
+  titleMatch?: boolean;
+  championship?: string;
+}
 
 export const ShowBooking = () => {
+  const [shows, setShows] = useState<Show[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingShow, setEditingShow] = useState<Show | null>(null);
+  const { toast } = useToast();
+
+  const [newShow, setNewShow] = useState<Partial<Show>>({
+    name: "",
+    brand: "Raw",
+    frequency: "weekly",
+    venue: "",
+    description: "",
+    matches: []
+  });
+
+  useEffect(() => {
+    const savedShows = localStorage.getItem("shows");
+    if (savedShows) {
+      const parsed = JSON.parse(savedShows);
+      const showsWithDates = parsed.map((show: any) => ({
+        ...show,
+        date: show.date ? new Date(show.date) : undefined
+      }));
+      setShows(showsWithDates);
+    }
+  }, []);
+
+  const saveShows = (updatedShows: Show[]) => {
+    setShows(updatedShows);
+    localStorage.setItem("shows", JSON.stringify(updatedShows));
+  };
+
+  const addShow = () => {
+    if (!newShow.name?.trim()) {
+      toast({
+        title: "Error",
+        description: "Show name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const show: Show = {
+      id: Date.now().toString(),
+      name: newShow.name!,
+      brand: newShow.brand || "Raw",
+      date: newShow.date,
+      frequency: newShow.frequency || "weekly",
+      venue: newShow.venue || "",
+      description: newShow.description || "",
+      matches: []
+    };
+
+    const updatedShows = [...shows, show];
+    saveShows(updatedShows);
+    
+    setNewShow({
+      name: "",
+      brand: "Raw",
+      frequency: "weekly",
+      venue: "",
+      description: "",
+      matches: []
+    });
+    setIsAddDialogOpen(false);
+    
+    toast({
+      title: "Show Created",
+      description: `${show.name} has been added to your calendar.`
+    });
+  };
+
+  const deleteShow = (id: string) => {
+    const updatedShows = shows.filter(s => s.id !== id);
+    saveShows(updatedShows);
+    toast({
+      title: "Show Deleted",
+      description: "Show has been removed from your calendar."
+    });
+  };
+
+  const getBrandColor = (brand: string) => {
+    switch (brand) {
+      case "Raw": return "bg-red-500";
+      case "SmackDown": return "bg-blue-500";
+      case "NXT": return "bg-yellow-500";
+      case "Legends": return "bg-purple-500";
+      default: return "bg-gray-500";
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -12,21 +132,193 @@ export const ShowBooking = () => {
           <Calendar className="w-6 h-6 text-blue-400" />
           <h2 className="text-2xl font-bold text-white">Show Booking</h2>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700">
-          <Plus className="w-4 h-4 mr-2" />
-          Book New Show
-        </Button>
+        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+          <DialogTrigger asChild>
+            <Button className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="w-4 h-4 mr-2" />
+              Book New Show
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-slate-800 border-blue-500/30 max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-white">Book New Show</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="showName" className="text-blue-200">Show Name</Label>
+                  <Input
+                    id="showName"
+                    value={newShow.name || ""}
+                    onChange={(e) => setNewShow({...newShow, name: e.target.value})}
+                    className="bg-slate-700 border-blue-500/30 text-white"
+                    placeholder="e.g. Monday Night Raw"
+                  />
+                </div>
+                <div>
+                  <Label className="text-blue-200">Brand</Label>
+                  <Select value={newShow.brand} onValueChange={(value) => setNewShow({...newShow, brand: value})}>
+                    <SelectTrigger className="bg-slate-700 border-blue-500/30 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-blue-500/30">
+                      <SelectItem value="Raw">Raw</SelectItem>
+                      <SelectItem value="SmackDown">SmackDown</SelectItem>
+                      <SelectItem value="NXT">NXT</SelectItem>
+                      <SelectItem value="PPV">Pay-Per-View</SelectItem>
+                      <SelectItem value="Special">Special Event</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-blue-200">Show Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal bg-slate-700 border-blue-500/30 text-white",
+                          !newShow.date && "text-slate-400"
+                        )}
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {newShow.date ? format(newShow.date, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <CalendarComponent
+                        mode="single"
+                        selected={newShow.date}
+                        onSelect={(date) => setNewShow({...newShow, date})}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div>
+                  <Label className="text-blue-200">Frequency</Label>
+                  <Select value={newShow.frequency} onValueChange={(value) => setNewShow({...newShow, frequency: value})}>
+                    <SelectTrigger className="bg-slate-700 border-blue-500/30 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-blue-500/30">
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                      <SelectItem value="one-time">One Time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="venue" className="text-blue-200">Venue</Label>
+                <Input
+                  id="venue"
+                  value={newShow.venue || ""}
+                  onChange={(e) => setNewShow({...newShow, venue: e.target.value})}
+                  className="bg-slate-700 border-blue-500/30 text-white"
+                  placeholder="e.g. Madison Square Garden"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="description" className="text-blue-200">Description</Label>
+                <Input
+                  id="description"
+                  value={newShow.description || ""}
+                  onChange={(e) => setNewShow({...newShow, description: e.target.value})}
+                  className="bg-slate-700 border-blue-500/30 text-white"
+                  placeholder="Special notes or event details"
+                />
+              </div>
+
+              <Button onClick={addShow} className="w-full bg-blue-600 hover:bg-blue-700">
+                Create Show
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <Card className="bg-slate-800/50 border-blue-500/30">
-        <CardContent className="text-center py-12">
-          <Calendar className="w-12 h-12 text-blue-400 mx-auto mb-4" />
-          <h3 className="text-xl font-semibold text-white mb-2">Show Booking Coming Soon</h3>
-          <p className="text-purple-200 mb-4">
-            This feature will allow you to book matches, create show cards, and manage events.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Shows Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {shows.map((show) => (
+          <Card key={show.id} className="bg-slate-800/50 border-blue-500/30 hover:border-blue-400/50 transition-colors">
+            <CardHeader className="pb-3">
+              <div className="flex justify-between items-start">
+                <CardTitle className="text-white text-lg">{show.name}</CardTitle>
+                <div className="flex space-x-2">
+                  <Button size="sm" variant="ghost" className="text-blue-400 hover:bg-blue-500/20">
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-red-400 hover:bg-red-500/20"
+                    onClick={() => deleteShow(show.id)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className={`px-2 py-1 rounded text-xs text-white ${getBrandColor(show.brand)}`}>
+                  {show.brand}
+                </span>
+                <span className="px-2 py-1 rounded text-xs bg-slate-600 text-white">
+                  {show.frequency}
+                </span>
+              </div>
+              
+              {show.date && (
+                <p className="text-sm text-blue-200">
+                  <Clock className="w-4 h-4 inline mr-1" />
+                  {format(show.date, "PPP")}
+                </p>
+              )}
+              
+              {show.venue && (
+                <p className="text-sm text-blue-200">
+                  <span className="font-medium">Venue:</span> {show.venue}
+                </p>
+              )}
+              
+              {show.description && (
+                <p className="text-sm text-slate-400">{show.description}</p>
+              )}
+              
+              <div className="flex items-center text-sm text-blue-200 mt-3">
+                <Users className="w-4 h-4 mr-1" />
+                {show.matches.length} matches booked
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {shows.length === 0 && (
+        <Card className="bg-slate-800/50 border-blue-500/30">
+          <CardContent className="text-center py-12">
+            <Calendar className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-white mb-2">No Shows Booked</h3>
+            <p className="text-blue-200 mb-4">
+              Start planning your wrestling events by booking your first show.
+            </p>
+            <Button onClick={() => setIsAddDialogOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="w-4 h-4 mr-2" />
+              Book Your First Show
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

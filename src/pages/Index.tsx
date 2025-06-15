@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,7 +9,8 @@ import { RivalryTracker } from "@/components/RivalryTracker";
 import { CalendarView } from "@/components/CalendarView";
 import { UniverseStats } from "@/components/UniverseStats";
 import { Settings } from "@/components/Settings";
-import { Trophy, Users, Calendar, Zap, BarChart3, Settings as SettingsIcon, Download } from "lucide-react";
+import { Storylines } from "@/components/Storylines";
+import { Trophy, Users, Calendar, Zap, BarChart3, Settings as SettingsIcon, Download, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
@@ -65,7 +65,7 @@ const Index = () => {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-7 mb-8 bg-slate-800/50 border border-purple-500/30">
+          <TabsList className="grid w-full grid-cols-8 mb-8 bg-slate-800/50 border border-purple-500/30">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-purple-600">
               <BarChart3 className="w-4 h-4 mr-2" />
               Dashboard
@@ -89,6 +89,10 @@ const Index = () => {
             <TabsTrigger value="rivalries" className="data-[state=active]:bg-purple-600">
               <Zap className="w-4 h-4 mr-2" />
               Rivalries
+            </TabsTrigger>
+            <TabsTrigger value="storylines" className="data-[state=active]:bg-purple-600">
+              <BookOpen className="w-4 h-4 mr-2" />
+              Storylines
             </TabsTrigger>
             <TabsTrigger value="settings" className="data-[state=active]:bg-purple-600">
               <SettingsIcon className="w-4 h-4 mr-2" />
@@ -118,6 +122,10 @@ const Index = () => {
 
           <TabsContent value="rivalries">
             <RivalryTracker />
+          </TabsContent>
+
+          <TabsContent value="storylines">
+            <Storylines />
           </TabsContent>
 
           <TabsContent value="settings">
