@@ -219,6 +219,7 @@ export const RosterManager = () => {
     switch (alignment) {
       case "Face": return "bg-green-500";
       case "Heel": return "bg-red-500";
+      case "Tweener": return "bg-yellow-500";
       default: return "bg-gray-500";
     }
   };
@@ -287,7 +288,7 @@ export const RosterManager = () => {
                       <SelectContent className="bg-slate-700 border-purple-500/30">
                         <SelectItem value="Face">Face</SelectItem>
                         <SelectItem value="Heel">Heel</SelectItem>
-                        <SelectItem value="Neutral">Neutral</SelectItem>
+                        <SelectItem value="Tweener">Tweener</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -375,7 +376,7 @@ export const RosterManager = () => {
                     <SelectContent className="bg-slate-700 border-purple-500/30">
                       <SelectItem value="Face">Face</SelectItem>
                       <SelectItem value="Heel">Heel</SelectItem>
-                      <SelectItem value="Neutral">Neutral</SelectItem>
+                      <SelectItem value="Tweener">Tweener</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -513,7 +514,7 @@ export const RosterManager = () => {
             <SelectItem value="all">All Alignments</SelectItem>
             <SelectItem value="Face">Face</SelectItem>
             <SelectItem value="Heel">Heel</SelectItem>
-            <SelectItem value="Neutral">Neutral</SelectItem>
+            <SelectItem value="Tweener">Tweener</SelectItem>
           </SelectContent>
         </Select>
       </div>
