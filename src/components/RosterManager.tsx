@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ interface Wrestler {
   manager?: string;
   faction?: string;
   injured: boolean;
+  break: boolean;
   customAttributes: Record<string, string>;
 }
 
@@ -44,6 +46,7 @@ export const RosterManager = () => {
     gender: "Male",
     titles: [],
     injured: false,
+    break: false,
     customAttributes: {}
   });
 
@@ -155,6 +158,7 @@ export const RosterManager = () => {
       manager: newWrestler.manager,
       faction: newWrestler.faction,
       injured: newWrestler.injured || false,
+      break: newWrestler.break || false,
       customAttributes: newWrestler.customAttributes || {}
     };
 
@@ -168,6 +172,7 @@ export const RosterManager = () => {
       gender: "Male",
       titles: [],
       injured: false,
+      break: false,
       customAttributes: {}
     });
     setIsAddDialogOpen(false);
@@ -286,6 +291,9 @@ export const RosterManager = () => {
           </Badge>
           {wrestler.injured && (
             <Badge variant="destructive">Injured</Badge>
+          )}
+          {wrestler.break && (
+            <Badge className="bg-orange-500 text-white">On Break</Badge>
           )}
         </div>
         
@@ -505,15 +513,27 @@ export const RosterManager = () => {
                   />
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="editInjured"
-                  checked={editingWrestler.injured}
-                  onChange={(e) => setEditingWrestler({...editingWrestler, injured: e.target.checked})}
-                  className="rounded border-purple-500/30"
-                />
-                <Label htmlFor="editInjured" className="text-purple-200">Injured</Label>
+              <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="editInjured"
+                    checked={editingWrestler.injured}
+                    onChange={(e) => setEditingWrestler({...editingWrestler, injured: e.target.checked})}
+                    className="rounded border-purple-500/30"
+                  />
+                  <Label htmlFor="editInjured" className="text-purple-200">Injured</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="editBreak"
+                    checked={editingWrestler.break || false}
+                    onChange={(e) => setEditingWrestler({...editingWrestler, break: e.target.checked})}
+                    className="rounded border-purple-500/30"
+                  />
+                  <Label htmlFor="editBreak" className="text-purple-200">Break</Label>
+                </div>
               </div>
               <div className="flex space-x-3">
                 <Button onClick={saveEditedWrestler} className="flex-1 bg-purple-600 hover:bg-purple-700">
