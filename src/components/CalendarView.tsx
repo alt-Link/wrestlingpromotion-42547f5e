@@ -1,11 +1,34 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
+interface Show {
+  id: string;
+  name: string;
+  brand: string;
+  date?: Date;
+  frequency: string;
+  venue: string;
+  description: string;
+}
+
 export const CalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [shows, setShows] = useState<Show[]>([]);
+
+  useEffect(() => {
+    const savedShows = localStorage.getItem("shows");
+    if (savedShows) {
+      const parsed = JSON.parse(savedShows);
+      const showsWithDates = parsed.map((show: any) => ({
+        ...show,
+        date: show.date ? new Date(show.date) : undefined
+      }));
+      setShows(showsWithDates);
+    }
+  }, []);
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
@@ -25,6 +48,27 @@ export const CalendarView = () => {
     setCurrentDate(new Date(currentDate.setMonth(currentDate.getMonth() + 1)));
   };
 
+  const getBrandColor = (brand: string) => {
+    switch (brand) {
+      case "Raw": return "bg-red-600";
+      case "SmackDown": return "bg-blue-600";
+      case "NXT": return "bg-yellow-600";
+      case "PPV": return "bg-orange-600";
+      case "Special": return "bg-green-600";
+      default: return "bg-gray-600";
+    }
+  };
+
+  const getShowsForDate = (day: number) => {
+    return shows.filter(show => {
+      if (!show.date) return false;
+      const showDate = new Date(show.date);
+      return showDate.getDate() === day &&
+             showDate.getMonth() === currentDate.getMonth() &&
+             showDate.getFullYear() === currentDate.getFullYear();
+    });
+  };
+
   const renderCalendarDays = () => {
     const days = [];
     
@@ -38,6 +82,7 @@ export const CalendarView = () => {
     // Days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
+      const dayShows = getShowsForDate(day);
       
       days.push(
         <div
@@ -49,22 +94,17 @@ export const CalendarView = () => {
           <div className={`text-sm font-medium ${isToday ? 'text-purple-300' : 'text-white'}`}>
             {day}
           </div>
-          {/* Sample events - these would come from your data */}
-          {day === 15 && (
-            <div className="mt-1">
-              <div className="bg-red-600 text-white text-xs px-1 rounded">Raw</div>
-            </div>
-          )}
-          {day === 20 && (
-            <div className="mt-1">
-              <div className="bg-blue-600 text-white text-xs px-1 rounded">SmackDown</div>
-            </div>
-          )}
-          {day === 25 && (
-            <div className="mt-1">
-              <div className="bg-yellow-600 text-white text-xs px-1 rounded">PPV</div>
-            </div>
-          )}
+          <div className="mt-1 space-y-1">
+            {dayShows.map((show, index) => (
+              <div 
+                key={show.id}
+                className={`text-white text-xs px-1 rounded truncate ${getBrandColor(show.brand)}`}
+                title={`${show.name}${show.venue ? ` at ${show.venue}` : ''}`}
+              >
+                {show.name}
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
@@ -122,7 +162,7 @@ export const CalendarView = () => {
             {renderCalendarDays()}
           </div>
           
-          <div className="mt-6 flex space-x-4">
+          <div className="mt-6 flex space-x-4 flex-wrap">
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-red-600 rounded"></div>
               <span className="text-purple-200 text-sm">Raw</span>
@@ -133,7 +173,15 @@ export const CalendarView = () => {
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-yellow-600 rounded"></div>
+              <span className="text-purple-200 text-sm">NXT</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-orange-600 rounded"></div>
               <span className="text-purple-200 text-sm">Pay-Per-View</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-green-600 rounded"></div>
+              <span className="text-purple-200 text-sm">Special Event</span>
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-purple-600 rounded"></div>
