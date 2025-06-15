@@ -90,7 +90,7 @@ export const AddShowDialog = ({ isOpen, onOpenChange, onAddShow }: AddShowDialog
                     {newShow.date ? format(newShow.date, "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
+                <PopoverContent className="w-auto p-0 bg-white border border-gray-200 shadow-lg z-50" align="start">
                   <CalendarComponent
                     mode="single"
                     selected={newShow.date}
