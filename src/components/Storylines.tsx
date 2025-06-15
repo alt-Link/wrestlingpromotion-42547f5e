@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { BookOpen, Plus, Edit, Trash2, Target, Calendar } from "lucide-react";
+import { BookOpen, Plus, Edit, Trash2, Target, Calendar, Clock, MapPin } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Storyline {
@@ -23,6 +23,7 @@ interface Storyline {
   objectives: string[];
   milestones: Milestone[];
   notes: string;
+  timeline: TimelineEvent[];
 }
 
 interface Milestone {
@@ -33,10 +34,20 @@ interface Milestone {
   description: string;
 }
 
+interface TimelineEvent {
+  id: string;
+  title: string;
+  date: string;
+  type: 'match' | 'promo' | 'milestone' | 'event';
+  description: string;
+  completed: boolean;
+}
+
 export const Storylines = () => {
   const [storylines, setStorylines] = useState<Storyline[]>([]);
   const [wrestlers, setWrestlers] = useState<any[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingStoryline, setEditingStoryline] = useState<Storyline | null>(null);
   const { toast } = useToast();
 
@@ -48,7 +59,8 @@ export const Storylines = () => {
     description: "",
     objectives: [],
     milestones: [],
-    notes: ""
+    notes: "",
+    timeline: []
   });
 
   useEffect(() => {
@@ -68,6 +80,69 @@ export const Storylines = () => {
     localStorage.setItem("storylines", JSON.stringify(updatedStorylines));
   };
 
+  const generateTimeline = (storyline: Partial<Storyline>): TimelineEvent[] => {
+    const timeline: TimelineEvent[] = [];
+    
+    if (!storyline.startDate || !storyline.estimatedEndDate) return timeline;
+
+    const startDate = new Date(storyline.startDate);
+    const endDate = new Date(storyline.estimatedEndDate);
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (totalDays <= 0) return timeline;
+
+    // Generate key storyline beats based on priority and description
+    const keyEvents = [];
+    
+    // Opening event
+    keyEvents.push({
+      id: `timeline-${Date.now()}-1`,
+      title: `${storyline.title} Begins`,
+      date: storyline.startDate,
+      type: 'event' as const,
+      description: `Start of ${storyline.title} storyline for ${storyline.wrestler}`,
+      completed: false
+    });
+
+    // Mid-point development (25% through)
+    if (totalDays > 7) {
+      const midPoint1 = new Date(startDate.getTime() + (totalDays * 0.25 * 24 * 60 * 60 * 1000));
+      keyEvents.push({
+        id: `timeline-${Date.now()}-2`,
+        title: 'First Major Development',
+        date: midPoint1.toISOString(),
+        type: 'promo' as const,
+        description: 'Key character moment or plot advancement',
+        completed: false
+      });
+    }
+
+    // Climax build-up (75% through)
+    if (totalDays > 14) {
+      const climaxBuild = new Date(startDate.getTime() + (totalDays * 0.75 * 24 * 60 * 60 * 1000));
+      keyEvents.push({
+        id: `timeline-${Date.now()}-3`,
+        title: 'Climax Build-Up',
+        date: climaxBuild.toISOString(),
+        type: 'match' as const,
+        description: 'Major confrontation or turning point',
+        completed: false
+      });
+    }
+
+    // Resolution
+    keyEvents.push({
+      id: `timeline-${Date.now()}-4`,
+      title: `${storyline.title} Conclusion`,
+      date: storyline.estimatedEndDate,
+      type: 'milestone' as const,
+      description: `Planned conclusion of ${storyline.title}`,
+      completed: false
+    });
+
+    return keyEvents;
+  };
+
   const addStoryline = () => {
     if (!newStoryline.title?.trim() || !newStoryline.wrestler?.trim()) {
       toast({
@@ -78,17 +153,21 @@ export const Storylines = () => {
       return;
     }
 
+    const timeline = generateTimeline(newStoryline);
+
     const storyline: Storyline = {
       id: Date.now().toString(),
       title: newStoryline.title!,
       wrestler: newStoryline.wrestler!,
       status: newStoryline.status || "planning",
       priority: newStoryline.priority || "medium",
-      startDate: new Date().toISOString(),
+      startDate: newStoryline.startDate || new Date().toISOString(),
+      estimatedEndDate: newStoryline.estimatedEndDate,
       description: newStoryline.description || "",
       objectives: [],
       milestones: [],
-      notes: newStoryline.notes || ""
+      notes: newStoryline.notes || "",
+      timeline
     };
 
     const updatedStorylines = [...storylines, storyline];
@@ -102,13 +181,44 @@ export const Storylines = () => {
       description: "",
       objectives: [],
       milestones: [],
-      notes: ""
+      notes: "",
+      timeline: []
     });
     setIsAddDialogOpen(false);
     
     toast({
       title: "Storyline Created",
       description: `${storyline.title} has been added to your planning.`
+    });
+  };
+
+  const startEditStoryline = (storyline: Storyline) => {
+    setEditingStoryline(storyline);
+    setIsEditDialogOpen(true);
+  };
+
+  const saveEditedStoryline = () => {
+    if (!editingStoryline) return;
+
+    const updatedTimeline = generateTimeline(editingStoryline);
+    const updatedStoryline = {
+      ...editingStoryline,
+      timeline: [...editingStoryline.timeline, ...updatedTimeline.filter(event => 
+        !editingStoryline.timeline.some(existing => existing.title === event.title)
+      )]
+    };
+
+    const updatedStorylines = storylines.map(s => 
+      s.id === editingStoryline.id ? updatedStoryline : s
+    );
+    
+    saveStorylines(updatedStorylines);
+    setEditingStoryline(null);
+    setIsEditDialogOpen(false);
+    
+    toast({
+      title: "Storyline Updated",
+      description: "Storyline has been successfully updated."
     });
   };
 
@@ -138,6 +248,16 @@ export const Storylines = () => {
       case "medium": return "bg-yellow-500";
       case "high": return "bg-red-500";
       default: return "bg-gray-500";
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case "match": return "🥊";
+      case "promo": return "🎤";
+      case "milestone": return "🏆";
+      case "event": return "⭐";
+      default: return "📝";
     }
   };
 
@@ -202,6 +322,29 @@ export const Storylines = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="startDate" className="text-indigo-200">Start Date</Label>
+                  <Input
+                    id="startDate"
+                    type="date"
+                    value={newStoryline.startDate?.split('T')[0] || ""}
+                    onChange={(e) => setNewStoryline({...newStoryline, startDate: e.target.value ? new Date(e.target.value).toISOString() : ""})}
+                    className="bg-slate-700 border-indigo-500/30 text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endDate" className="text-indigo-200">Estimated End Date</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    value={newStoryline.estimatedEndDate?.split('T')[0] || ""}
+                    onChange={(e) => setNewStoryline({...newStoryline, estimatedEndDate: e.target.value ? new Date(e.target.value).toISOString() : ""})}
+                    className="bg-slate-700 border-indigo-500/30 text-white"
+                  />
+                </div>
+              </div>
+
               <div>
                 <Label className="text-indigo-200">Status</Label>
                 <Select value={newStoryline.status} onValueChange={(value) => setNewStoryline({...newStoryline, status: value})}>
@@ -250,6 +393,104 @@ export const Storylines = () => {
         </Dialog>
       </div>
 
+      {/* Edit Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="bg-slate-800 border-indigo-500/30 max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Storyline</DialogTitle>
+          </DialogHeader>
+          {editingStoryline && (
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="editTitle" className="text-indigo-200">Storyline Title</Label>
+                <Input
+                  id="editTitle"
+                  value={editingStoryline.title}
+                  onChange={(e) => setEditingStoryline({...editingStoryline, title: e.target.value})}
+                  className="bg-slate-700 border-indigo-500/30 text-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-indigo-200">Start Date</Label>
+                  <Input
+                    type="date"
+                    value={editingStoryline.startDate?.split('T')[0] || ""}
+                    onChange={(e) => setEditingStoryline({...editingStoryline, startDate: e.target.value ? new Date(e.target.value).toISOString() : editingStoryline.startDate})}
+                    className="bg-slate-700 border-indigo-500/30 text-white"
+                  />
+                </div>
+                <div>
+                  <Label className="text-indigo-200">Estimated End Date</Label>
+                  <Input
+                    type="date"
+                    value={editingStoryline.estimatedEndDate?.split('T')[0] || ""}
+                    onChange={(e) => setEditingStoryline({...editingStoryline, estimatedEndDate: e.target.value ? new Date(e.target.value).toISOString() : ""})}
+                    className="bg-slate-700 border-indigo-500/30 text-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-indigo-200">Status</Label>
+                  <Select value={editingStoryline.status} onValueChange={(value) => setEditingStoryline({...editingStoryline, status: value})}>
+                    <SelectTrigger className="bg-slate-700 border-indigo-500/30 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-indigo-500/30">
+                      <SelectItem value="planning">Planning</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="paused">Paused</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-indigo-200">Priority</Label>
+                  <Select value={editingStoryline.priority} onValueChange={(value) => setEditingStoryline({...editingStoryline, priority: value})}>
+                    <SelectTrigger className="bg-slate-700 border-indigo-500/30 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-indigo-500/30">
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-indigo-200">Description</Label>
+                <Textarea
+                  value={editingStoryline.description}
+                  onChange={(e) => setEditingStoryline({...editingStoryline, description: e.target.value})}
+                  className="bg-slate-700 border-indigo-500/30 text-white"
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label className="text-indigo-200">Notes</Label>
+                <Textarea
+                  value={editingStoryline.notes}
+                  onChange={(e) => setEditingStoryline({...editingStoryline, notes: e.target.value})}
+                  className="bg-slate-700 border-indigo-500/30 text-white"
+                  rows={2}
+                />
+              </div>
+
+              <Button onClick={saveEditedStoryline} className="w-full bg-indigo-600 hover:bg-indigo-700">
+                Save Changes
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Storylines Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {storylines.map((storyline) => (
@@ -258,7 +499,12 @@ export const Storylines = () => {
               <div className="flex justify-between items-start">
                 <CardTitle className="text-white text-lg">{storyline.title}</CardTitle>
                 <div className="flex space-x-2">
-                  <Button size="sm" variant="ghost" className="text-indigo-400 hover:bg-indigo-500/20">
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="text-indigo-400 hover:bg-indigo-500/20"
+                    onClick={() => startEditStoryline(storyline)}
+                  >
                     <Edit className="w-4 h-4" />
                   </Button>
                   <Button 
@@ -290,6 +536,32 @@ export const Storylines = () => {
               {storyline.description && (
                 <p className="text-sm text-slate-400">{storyline.description}</p>
               )}
+
+              {/* Timeline Section */}
+              {storyline.timeline && storyline.timeline.length > 0 && (
+                <div className="bg-slate-700/50 p-3 rounded">
+                  <h4 className="text-sm font-medium text-indigo-200 mb-2 flex items-center">
+                    <MapPin className="w-4 h-4 mr-1" />
+                    Generated Timeline
+                  </h4>
+                  <div className="space-y-2 max-h-32 overflow-y-auto">
+                    {storyline.timeline.slice(0, 3).map((event) => (
+                      <div key={event.id} className="text-xs text-slate-300 flex items-center">
+                        <span className="mr-2">{getTypeIcon(event.type)}</span>
+                        <div className="flex-1">
+                          <span className="font-medium">{event.title}</span>
+                          <div className="text-slate-400">
+                            {new Date(event.date).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {storyline.timeline.length > 3 && (
+                      <p className="text-xs text-slate-400">+{storyline.timeline.length - 3} more events</p>
+                    )}
+                  </div>
+                </div>
+              )}
               
               {storyline.notes && (
                 <div className="bg-slate-700/50 p-2 rounded text-xs text-slate-300">
@@ -297,9 +569,17 @@ export const Storylines = () => {
                 </div>
               )}
               
-              <div className="flex items-center text-xs text-indigo-200 mt-3">
-                <Calendar className="w-4 h-4 mr-1" />
-                Started: {new Date(storyline.startDate).toLocaleDateString()}
+              <div className="flex items-center justify-between text-xs text-indigo-200 mt-3">
+                <div className="flex items-center">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  {new Date(storyline.startDate).toLocaleDateString()}
+                </div>
+                {storyline.estimatedEndDate && (
+                  <div className="flex items-center">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {new Date(storyline.estimatedEndDate).toLocaleDateString()}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
