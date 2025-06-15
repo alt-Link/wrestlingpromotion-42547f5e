@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -144,12 +143,42 @@ export const CalendarView = () => {
   };
 
   const getShowsForDate = (day: number) => {
+    const cellDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    cellDate.setHours(0, 0, 0, 0);
+
     return shows.filter(show => {
       if (!show.date) return false;
-      const showDate = new Date(show.date);
-      return showDate.getDate() === day &&
-             showDate.getMonth() === currentDate.getMonth() &&
-             showDate.getFullYear() === currentDate.getFullYear();
+      
+      const showStartDate = new Date(show.date);
+      showStartDate.setHours(0, 0, 0, 0);
+
+      if (cellDate < showStartDate) {
+        return false; // Cannot occur before its start date
+      }
+
+      switch (show.frequency) {
+        case 'one-time':
+          return cellDate.getTime() === showStartDate.getTime();
+        
+        case 'weekly':
+          return cellDate.getDay() === showStartDate.getDay();
+
+        case 'monthly':
+          return cellDate.getDate() === showStartDate.getDate();
+
+        case 'quarterly':
+          if (cellDate.getDate() !== showStartDate.getDate()) {
+            return false;
+          }
+          const monthDiff = (cellDate.getFullYear() - showStartDate.getFullYear()) * 12 + (cellDate.getMonth() - showStartDate.getMonth());
+          return monthDiff >= 0 && monthDiff % 3 === 0;
+
+        case 'yearly':
+          return cellDate.getDate() === showStartDate.getDate() && cellDate.getMonth() === showStartDate.getMonth();
+
+        default: // For shows without a frequency, treat as one-time
+          return cellDate.getTime() === showStartDate.getTime();
+      }
     });
   };
 
