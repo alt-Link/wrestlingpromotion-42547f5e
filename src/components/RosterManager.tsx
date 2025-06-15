@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Search, Users, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Users, Edit, Trash2, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Wrestler {
@@ -24,12 +24,16 @@ interface Wrestler {
 
 export const RosterManager = () => {
   const [wrestlers, setWrestlers] = useState<Wrestler[]>([]);
+  const [freeAgents, setFreeAgents] = useState<Wrestler[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterBrand, setFilterBrand] = useState("all");
   const [filterAlignment, setFilterAlignment] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingWrestler, setEditingWrestler] = useState<Wrestler | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isFreeAgentDialogOpen, setIsFreeAgentDialogOpen] = useState(false);
+  const [selectedFreeAgent, setSelectedFreeAgent] = useState<Wrestler | null>(null);
+  const [showFreeAgents, setShowFreeAgents] = useState(false);
   const { toast } = useToast();
 
   const [newWrestler, setNewWrestler] = useState<Partial<Wrestler>>({
@@ -44,14 +48,23 @@ export const RosterManager = () => {
 
   useEffect(() => {
     const savedWrestlers = localStorage.getItem("wrestlers");
+    const savedFreeAgents = localStorage.getItem("freeAgents");
     if (savedWrestlers) {
       setWrestlers(JSON.parse(savedWrestlers));
+    }
+    if (savedFreeAgents) {
+      setFreeAgents(JSON.parse(savedFreeAgents));
     }
   }, []);
 
   const saveWrestlers = (updatedWrestlers: Wrestler[]) => {
     setWrestlers(updatedWrestlers);
     localStorage.setItem("wrestlers", JSON.stringify(updatedWrestlers));
+  };
+
+  const saveFreeAgents = (updatedFreeAgents: Wrestler[]) => {
+    setFreeAgents(updatedFreeAgents);
+    localStorage.setItem("freeAgents", JSON.stringify(updatedFreeAgents));
   };
 
   const editWrestler = (wrestler: Wrestler) => {
@@ -86,13 +99,39 @@ export const RosterManager = () => {
   const releaseWrestler = (id: string) => {
     const wrestler = wrestlers.find(w => w.id === id);
     if (wrestler) {
+      // Move to free agents
+      const releasedWrestler = { ...wrestler, brand: "Free Agent" };
       const updatedWrestlers = wrestlers.filter(w => w.id !== id);
+      const updatedFreeAgents = [...freeAgents, releasedWrestler];
+      
       saveWrestlers(updatedWrestlers);
+      saveFreeAgents(updatedFreeAgents);
+      
+      setEditingWrestler(null);
+      setIsEditDialogOpen(false);
+      
       toast({
         title: "Wrestler Released",
-        description: `${wrestler.name} has been released from the roster.`
+        description: `${wrestler.name} has been released and moved to the free agent pool.`
       });
     }
+  };
+
+  const signFreeAgent = (freeAgent: Wrestler, newBrand: string) => {
+    const signedWrestler = { ...freeAgent, brand: newBrand };
+    const updatedFreeAgents = freeAgents.filter(fa => fa.id !== freeAgent.id);
+    const updatedWrestlers = [...wrestlers, signedWrestler];
+    
+    saveWrestlers(updatedWrestlers);
+    saveFreeAgents(updatedFreeAgents);
+    
+    setSelectedFreeAgent(null);
+    setIsFreeAgentDialogOpen(false);
+    
+    toast({
+      title: "Free Agent Signed",
+      description: `${freeAgent.name} has been signed to ${newBrand}.`
+    });
   };
 
   const addWrestler = () => {
@@ -147,7 +186,17 @@ export const RosterManager = () => {
     });
   };
 
-  const filteredWrestlers = wrestlers.filter(wrestler => {
+  const deleteFreeAgent = (id: string) => {
+    const updatedFreeAgents = freeAgents.filter(fa => fa.id !== id);
+    saveFreeAgents(updatedFreeAgents);
+    toast({
+      title: "Free Agent Removed",
+      description: "Free agent has been permanently removed."
+    });
+  };
+
+  const currentList = showFreeAgents ? freeAgents : wrestlers;
+  const filteredWrestlers = currentList.filter(wrestler => {
     const matchesSearch = wrestler.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBrand = filterBrand === "all" || wrestler.brand === filterBrand;
     const matchesAlignment = filterAlignment === "all" || wrestler.alignment === filterAlignment;
@@ -161,6 +210,7 @@ export const RosterManager = () => {
       case "SmackDown": return "bg-blue-500";
       case "NXT": return "bg-yellow-500";
       case "Legends": return "bg-purple-500";
+      case "Free Agent": return "bg-gray-500";
       default: return "bg-gray-500";
     }
   };
@@ -178,97 +228,109 @@ export const RosterManager = () => {
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-2">
           <Users className="w-6 h-6 text-purple-400" />
-          <h2 className="text-2xl font-bold text-white">Roster Management</h2>
+          <h2 className="text-2xl font-bold text-white">
+            {showFreeAgents ? `Free Agents (${freeAgents.length})` : `Active Roster (${wrestlers.length})`}
+          </h2>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-purple-600 hover:bg-purple-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Wrestler
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="bg-slate-800 border-purple-500/30">
-            <DialogHeader>
-              <DialogTitle className="text-white">Add New Wrestler</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name" className="text-purple-200">Name</Label>
-                <Input
-                  id="name"
-                  value={newWrestler.name || ""}
-                  onChange={(e) => setNewWrestler({...newWrestler, name: e.target.value})}
-                  className="bg-slate-700 border-purple-500/30 text-white"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-purple-200">Brand</Label>
-                  <Select value={newWrestler.brand} onValueChange={(value) => setNewWrestler({...newWrestler, brand: value})}>
-                    <SelectTrigger className="bg-slate-700 border-purple-500/30 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-700 border-purple-500/30">
-                      <SelectItem value="Raw">Raw</SelectItem>
-                      <SelectItem value="SmackDown">SmackDown</SelectItem>
-                      <SelectItem value="NXT">NXT</SelectItem>
-                      <SelectItem value="Legends">Legends</SelectItem>
-                      <SelectItem value="Free Agent">Free Agent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-purple-200">Alignment</Label>
-                  <Select value={newWrestler.alignment} onValueChange={(value) => setNewWrestler({...newWrestler, alignment: value})}>
-                    <SelectTrigger className="bg-slate-700 border-purple-500/30 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-700 border-purple-500/30">
-                      <SelectItem value="Face">Face</SelectItem>
-                      <SelectItem value="Heel">Heel</SelectItem>
-                      <SelectItem value="Neutral">Neutral</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div>
-                <Label className="text-purple-200">Gender</Label>
-                <Select value={newWrestler.gender} onValueChange={(value) => setNewWrestler({...newWrestler, gender: value})}>
-                  <SelectTrigger className="bg-slate-700 border-purple-500/30 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-purple-500/30">
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="manager" className="text-purple-200">Manager (Optional)</Label>
-                  <Input
-                    id="manager"
-                    value={newWrestler.manager || ""}
-                    onChange={(e) => setNewWrestler({...newWrestler, manager: e.target.value})}
-                    className="bg-slate-700 border-purple-500/30 text-white"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="faction" className="text-purple-200">Faction (Optional)</Label>
-                  <Input
-                    id="faction"
-                    value={newWrestler.faction || ""}
-                    onChange={(e) => setNewWrestler({...newWrestler, faction: e.target.value})}
-                    className="bg-slate-700 border-purple-500/30 text-white"
-                  />
-                </div>
-              </div>
-              <Button onClick={addWrestler} className="w-full bg-purple-600 hover:bg-purple-700">
+        <div className="flex space-x-3">
+          <Button 
+            onClick={() => setShowFreeAgents(!showFreeAgents)} 
+            variant="outline" 
+            className="border-purple-500 text-purple-300 hover:bg-purple-500/20"
+          >
+            <UserCheck className="w-4 h-4 mr-2" />
+            {showFreeAgents ? "View Active Roster" : "View Free Agents"}
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-purple-600 hover:bg-purple-700">
+                <Plus className="w-4 h-4 mr-2" />
                 Add Wrestler
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent className="bg-slate-800 border-purple-500/30">
+              <DialogHeader>
+                <DialogTitle className="text-white">Add New Wrestler</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name" className="text-purple-200">Name</Label>
+                  <Input
+                    id="name"
+                    value={newWrestler.name || ""}
+                    onChange={(e) => setNewWrestler({...newWrestler, name: e.target.value})}
+                    className="bg-slate-700 border-purple-500/30 text-white"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-purple-200">Brand</Label>
+                    <Select value={newWrestler.brand} onValueChange={(value) => setNewWrestler({...newWrestler, brand: value})}>
+                      <SelectTrigger className="bg-slate-700 border-purple-500/30 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-700 border-purple-500/30">
+                        <SelectItem value="Raw">Raw</SelectItem>
+                        <SelectItem value="SmackDown">SmackDown</SelectItem>
+                        <SelectItem value="NXT">NXT</SelectItem>
+                        <SelectItem value="Legends">Legends</SelectItem>
+                        <SelectItem value="Free Agent">Free Agent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-purple-200">Alignment</Label>
+                    <Select value={newWrestler.alignment} onValueChange={(value) => setNewWrestler({...newWrestler, alignment: value})}>
+                      <SelectTrigger className="bg-slate-700 border-purple-500/30 text-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-700 border-purple-500/30">
+                        <SelectItem value="Face">Face</SelectItem>
+                        <SelectItem value="Heel">Heel</SelectItem>
+                        <SelectItem value="Neutral">Neutral</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-purple-200">Gender</Label>
+                  <Select value={newWrestler.gender} onValueChange={(value) => setNewWrestler({...newWrestler, gender: value})}>
+                    <SelectTrigger className="bg-slate-700 border-purple-500/30 text-white">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-purple-500/30">
+                      <SelectItem value="Male">Male</SelectItem>
+                      <SelectItem value="Female">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="manager" className="text-purple-200">Manager (Optional)</Label>
+                    <Input
+                      id="manager"
+                      value={newWrestler.manager || ""}
+                      onChange={(e) => setNewWrestler({...newWrestler, manager: e.target.value})}
+                      className="bg-slate-700 border-purple-500/30 text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="faction" className="text-purple-200">Faction (Optional)</Label>
+                    <Input
+                      id="faction"
+                      value={newWrestler.faction || ""}
+                      onChange={(e) => setNewWrestler({...newWrestler, faction: e.target.value})}
+                      className="bg-slate-700 border-purple-500/30 text-white"
+                    />
+                  </div>
+                </div>
+                <Button onClick={addWrestler} className="w-full bg-purple-600 hover:bg-purple-700">
+                  Add Wrestler
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Edit Wrestler Dialog */}
@@ -377,6 +439,48 @@ export const RosterManager = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Free Agent Signing Dialog */}
+      <Dialog open={isFreeAgentDialogOpen} onOpenChange={setIsFreeAgentDialogOpen}>
+        <DialogContent className="bg-slate-800 border-purple-500/30">
+          <DialogHeader>
+            <DialogTitle className="text-white">Sign Free Agent</DialogTitle>
+          </DialogHeader>
+          {selectedFreeAgent && (
+            <div className="space-y-4">
+              <p className="text-purple-200">
+                Sign <span className="font-bold text-white">{selectedFreeAgent.name}</span> to which brand?
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  onClick={() => signFreeAgent(selectedFreeAgent, "Raw")} 
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Raw
+                </Button>
+                <Button 
+                  onClick={() => signFreeAgent(selectedFreeAgent, "SmackDown")} 
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  SmackDown
+                </Button>
+                <Button 
+                  onClick={() => signFreeAgent(selectedFreeAgent, "NXT")} 
+                  className="bg-yellow-600 hover:bg-yellow-700"
+                >
+                  NXT
+                </Button>
+                <Button 
+                  onClick={() => signFreeAgent(selectedFreeAgent, "Legends")} 
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  Legends
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Filters */}
       <div className="flex flex-wrap gap-4">
         <div className="relative">
@@ -422,19 +526,33 @@ export const RosterManager = () => {
               <div className="flex justify-between items-start">
                 <CardTitle className="text-white text-lg">{wrestler.name}</CardTitle>
                 <div className="flex space-x-2">
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-purple-400 hover:bg-purple-500/20"
-                    onClick={() => editWrestler(wrestler)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
+                  {showFreeAgents ? (
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-green-400 hover:bg-green-500/20"
+                      onClick={() => {
+                        setSelectedFreeAgent(wrestler);
+                        setIsFreeAgentDialogOpen(true);
+                      }}
+                    >
+                      <UserCheck className="w-4 h-4" />
+                    </Button>
+                  ) : (
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-purple-400 hover:bg-purple-500/20"
+                      onClick={() => editWrestler(wrestler)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  )}
                   <Button 
                     size="sm" 
                     variant="ghost" 
                     className="text-red-400 hover:bg-red-500/20"
-                    onClick={() => deleteWrestler(wrestler.id)}
+                    onClick={() => showFreeAgents ? deleteFreeAgent(wrestler.id) : deleteWrestler(wrestler.id)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -490,14 +608,18 @@ export const RosterManager = () => {
         <Card className="bg-slate-800/50 border-purple-500/30">
           <CardContent className="text-center py-12">
             <Users className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Wrestlers Found</h3>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              {showFreeAgents ? "No Free Agents Found" : "No Wrestlers Found"}
+            </h3>
             <p className="text-purple-200 mb-4">
-              {wrestlers.length === 0 
-                ? "Start building your roster by adding your first wrestler."
-                : "No wrestlers match your current filters."
+              {currentList.length === 0 
+                ? showFreeAgents 
+                  ? "No wrestlers have been released to the free agent pool yet."
+                  : "Start building your roster by adding your first wrestler."
+                : `No ${showFreeAgents ? "free agents" : "wrestlers"} match your current filters.`
               }
             </p>
-            {wrestlers.length === 0 && (
+            {!showFreeAgents && wrestlers.length === 0 && (
               <Button onClick={() => setIsAddDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Your First Wrestler
