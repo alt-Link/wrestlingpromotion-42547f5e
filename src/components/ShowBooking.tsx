@@ -22,6 +22,9 @@ interface Show {
   venue: string;
   description: string;
   matches: Match[];
+  isTemplate?: boolean;
+  baseShowId?: string;
+  instanceDate?: Date;
 }
 
 interface Match {
@@ -56,7 +59,10 @@ export const ShowBooking = () => {
       const parsed = JSON.parse(savedShows);
       const showsWithDates = parsed.map((show: any) => ({
         ...show,
-        date: show.date ? new Date(show.date) : undefined
+        date: show.date ? new Date(show.date) : undefined,
+        instanceDate: show.instanceDate ? new Date(show.instanceDate) : undefined,
+        matches: show.matches || [],
+        isTemplate: show.isTemplate !== undefined ? show.isTemplate : (show.frequency !== 'one-time')
       }));
       setShows(showsWithDates);
     }
@@ -85,7 +91,8 @@ export const ShowBooking = () => {
       frequency: newShow.frequency || "weekly",
       venue: newShow.venue || "",
       description: newShow.description || "",
-      matches: []
+      matches: [],
+      isTemplate: (newShow.frequency || "weekly") !== "one-time"
     };
 
     const updatedShows = [...shows, show];
@@ -103,11 +110,20 @@ export const ShowBooking = () => {
     
     toast({
       title: "Show Created",
-      description: `${show.name} has been added to your calendar.`
+      description: `${show.name} has been added to your calendar${show.isTemplate ? " as a recurring show template" : ""}.`
     });
   };
 
   const openEditDialog = (show: Show) => {
+    // Only allow editing templates, not instances
+    if (!show.isTemplate) {
+      toast({
+        title: "Cannot Edit Instance",
+        description: "This is a specific show instance. Edit the base recurring show template instead.",
+        variant: "destructive"
+      });
+      return;
+    }
     setEditingShow(show);
     setIsEditDialogOpen(true);
   };
@@ -132,17 +148,31 @@ export const ShowBooking = () => {
     
     toast({
       title: "Show Updated",
-      description: `${editingShow.name} has been updated.`
+      description: `${editingShow.name} template has been updated.`
     });
   };
 
   const deleteShow = (id: string) => {
-    const updatedShows = shows.filter(s => s.id !== id);
-    saveShows(updatedShows);
-    toast({
-      title: "Show Deleted",
-      description: "Show has been removed from your calendar."
-    });
+    const showToDelete = shows.find(s => s.id === id);
+    if (!showToDelete) return;
+
+    if (showToDelete.isTemplate) {
+      // If deleting a template, also delete all its instances
+      const updatedShows = shows.filter(s => s.id !== id && s.baseShowId !== id);
+      saveShows(updatedShows);
+      toast({
+        title: "Show Template Deleted",
+        description: "Show template and all its instances have been removed."
+      });
+    } else {
+      // Just delete the instance
+      const updatedShows = shows.filter(s => s.id !== id);
+      saveShows(updatedShows);
+      toast({
+        title: "Show Instance Deleted",
+        description: "Show instance has been removed."
+      });
+    }
   };
 
   const getBrandColor = (brand: string) => {
@@ -154,6 +184,9 @@ export const ShowBooking = () => {
       default: return "bg-gray-500";
     }
   };
+
+  // Filter to show only templates in the main view
+  const displayShows = shows.filter(show => show.isTemplate);
 
   return (
     <div className="space-y-6">
@@ -280,7 +313,7 @@ export const ShowBooking = () => {
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="bg-slate-800 border-blue-500/30 max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-white">Edit Show</DialogTitle>
+            <DialogTitle className="text-white">Edit Show Template</DialogTitle>
           </DialogHeader>
           {editingShow && (
             <div className="space-y-4">
@@ -397,68 +430,80 @@ export const ShowBooking = () => {
 
       {/* Shows Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {shows.map((show) => (
-          <Card key={show.id} className="bg-slate-800/50 border-blue-500/30 hover:border-blue-400/50 transition-colors">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-white text-lg">{show.name}</CardTitle>
-                <div className="flex space-x-2">
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-blue-400 hover:bg-blue-500/20"
-                    onClick={() => openEditDialog(show)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-red-400 hover:bg-red-500/20"
-                    onClick={() => deleteShow(show.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+        {displayShows.map((show) => {
+          const instancesCount = shows.filter(s => s.baseShowId === show.id).length;
+          const totalMatches = shows
+            .filter(s => s.baseShowId === show.id)
+            .reduce((total, instance) => total + (instance.matches?.length || 0), 0);
+          
+          return (
+            <Card key={show.id} className="bg-slate-800/50 border-blue-500/30 hover:border-blue-400/50 transition-colors">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-white text-lg">{show.name}</CardTitle>
+                  <div className="flex space-x-2">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-blue-400 hover:bg-blue-500/20"
+                      onClick={() => openEditDialog(show)}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="text-red-400 hover:bg-red-500/20"
+                      onClick={() => deleteShow(show.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className={`px-2 py-1 rounded text-xs text-white ${getBrandColor(show.brand)}`}>
-                  {show.brand}
-                </span>
-                <span className="px-2 py-1 rounded text-xs bg-slate-600 text-white">
-                  {show.frequency}
-                </span>
-              </div>
-              
-              {show.date && (
-                <p className="text-sm text-blue-200">
-                  <Clock className="w-4 h-4 inline mr-1" />
-                  {format(show.date, "PPP")}
-                </p>
-              )}
-              
-              {show.venue && (
-                <p className="text-sm text-blue-200">
-                  <span className="font-medium">Venue:</span> {show.venue}
-                </p>
-              )}
-              
-              {show.description && (
-                <p className="text-sm text-slate-400">{show.description}</p>
-              )}
-              
-              <div className="flex items-center text-sm text-blue-200 mt-3">
-                <Users className="w-4 h-4 mr-1" />
-                {show.matches.length} matches booked
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <span className={`px-2 py-1 rounded text-xs text-white ${getBrandColor(show.brand)}`}>
+                    {show.brand}
+                  </span>
+                  <span className="px-2 py-1 rounded text-xs bg-slate-600 text-white">
+                    {show.frequency}
+                  </span>
+                  {show.isTemplate && (
+                    <span className="px-2 py-1 rounded text-xs bg-purple-600 text-white">
+                      Template
+                    </span>
+                  )}
+                </div>
+                
+                {show.date && (
+                  <p className="text-sm text-blue-200">
+                    <Clock className="w-4 h-4 inline mr-1" />
+                    Starts: {format(show.date, "PPP")}
+                  </p>
+                )}
+                
+                {show.venue && (
+                  <p className="text-sm text-blue-200">
+                    <span className="font-medium">Venue:</span> {show.venue}
+                  </p>
+                )}
+                
+                {show.description && (
+                  <p className="text-sm text-slate-400">{show.description}</p>
+                )}
+                
+                <div className="flex items-center text-sm text-blue-200 mt-3">
+                  <Users className="w-4 h-4 mr-1" />
+                  {instancesCount} shows booked, {totalMatches} total matches
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {shows.length === 0 && (
+      {displayShows.length === 0 && (
         <Card className="bg-slate-800/50 border-blue-500/30">
           <CardContent className="text-center py-12">
             <Calendar className="w-12 h-12 text-blue-400 mx-auto mb-4" />

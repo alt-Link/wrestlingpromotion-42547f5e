@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,9 @@ interface Show {
   venue: string;
   description: string;
   matches?: Match[];
+  isTemplate?: boolean;
+  baseShowId?: string;
+  instanceDate?: Date;
 }
 
 interface Match {
@@ -33,6 +37,7 @@ export const CalendarView = () => {
   const [shows, setShows] = useState<Show[]>([]);
   const [wrestlers, setWrestlers] = useState<any[]>([]);
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isMatchDialogOpen, setIsMatchDialogOpen] = useState(false);
   const [isShowDetailsDialogOpen, setIsShowDetailsDialogOpen] = useState(false);
   const [newMatch, setNewMatch] = useState<Partial<Match>>({
@@ -49,7 +54,9 @@ export const CalendarView = () => {
       const showsWithDates = parsed.map((show: any) => ({
         ...show,
         date: show.date ? new Date(show.date) : undefined,
-        matches: show.matches || []
+        instanceDate: show.instanceDate ? new Date(show.instanceDate) : undefined,
+        matches: show.matches || [],
+        isTemplate: show.isTemplate !== undefined ? show.isTemplate : (show.frequency !== 'one-time')
       }));
       setShows(showsWithDates);
     }
@@ -65,11 +72,54 @@ export const CalendarView = () => {
     localStorage.setItem("shows", JSON.stringify(updatedShows));
   };
 
+  const findOrCreateShowInstance = (baseShow: Show, targetDate: Date): Show => {
+    const dateKey = targetDate.toDateString();
+    
+    // Look for existing instance for this date
+    const existingInstance = shows.find(show => 
+      show.baseShowId === baseShow.id && 
+      show.instanceDate?.toDateString() === dateKey
+    );
+    
+    if (existingInstance) {
+      return existingInstance;
+    }
+    
+    // Create new instance
+    const newInstance: Show = {
+      id: `${baseShow.id}-${Date.now()}`,
+      name: baseShow.name,
+      brand: baseShow.brand,
+      date: baseShow.date,
+      frequency: baseShow.frequency,
+      venue: baseShow.venue,
+      description: baseShow.description,
+      matches: [],
+      isTemplate: false,
+      baseShowId: baseShow.id,
+      instanceDate: new Date(targetDate)
+    };
+    
+    const updatedShows = [...shows, newInstance];
+    saveShows(updatedShows);
+    
+    return newInstance;
+  };
+
   const addMatchToShow = () => {
     if (!newMatch.participants?.length || newMatch.participants.length < 2) {
       toast({
         title: "Error",
         description: "At least 2 participants are required for a match",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!selectedShow || !selectedDate) {
+      toast({
+        title: "Error",
+        description: "No show or date selected",
         variant: "destructive"
       });
       return;
@@ -84,8 +134,15 @@ export const CalendarView = () => {
       description: newMatch.description || ""
     };
 
+    let targetShow = selectedShow;
+    
+    // If this is a template (recurring show), create/find instance
+    if (selectedShow.isTemplate) {
+      targetShow = findOrCreateShowInstance(selectedShow, selectedDate);
+    }
+
     const updatedShows = shows.map(show => 
-      show.id === selectedShow?.id 
+      show.id === targetShow.id 
         ? { ...show, matches: [...(show.matches || []), match] }
         : show
     );
@@ -93,12 +150,10 @@ export const CalendarView = () => {
     saveShows(updatedShows);
     
     // Update selectedShow to reflect the new match
-    if (selectedShow) {
-      setSelectedShow({
-        ...selectedShow,
-        matches: [...(selectedShow.matches || []), match]
-      });
-    }
+    setSelectedShow({
+      ...targetShow,
+      matches: [...(targetShow.matches || []), match]
+    });
     
     setNewMatch({
       participants: [],
@@ -109,7 +164,7 @@ export const CalendarView = () => {
     
     toast({
       title: "Match Added",
-      description: `Match has been added to ${selectedShow?.name}.`
+      description: `Match has been added to ${targetShow.name} on ${selectedDate.toLocaleDateString()}.`
     });
   };
 
@@ -146,48 +201,83 @@ export const CalendarView = () => {
     const cellDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
     cellDate.setHours(0, 0, 0, 0);
 
-    return shows.filter(show => {
-      if (!show.date) return false;
+    const showsForDate: Show[] = [];
+
+    // First, check for specific instances on this date
+    const instances = shows.filter(show => 
+      !show.isTemplate && 
+      show.instanceDate?.toDateString() === cellDate.toDateString()
+    );
+
+    // For each instance found, add it to the results
+    instances.forEach(instance => {
+      showsForDate.push(instance);
+    });
+
+    // Then check for recurring show templates that should appear on this date
+    const templates = shows.filter(show => show.isTemplate && show.date);
+    
+    templates.forEach(template => {
+      if (!template.date) return;
       
-      const showStartDate = new Date(show.date);
+      const showStartDate = new Date(template.date);
       showStartDate.setHours(0, 0, 0, 0);
 
       if (cellDate < showStartDate) {
-        return false; // Cannot occur before its start date
+        return; // Cannot occur before its start date
       }
 
-      switch (show.frequency) {
+      // Check if there's already an instance for this template on this date
+      const hasInstance = instances.some(instance => instance.baseShowId === template.id);
+      if (hasInstance) {
+        return; // Don't show template if instance exists
+      }
+
+      let shouldShow = false;
+
+      switch (template.frequency) {
         case 'one-time':
-          return cellDate.getTime() === showStartDate.getTime();
+          shouldShow = cellDate.getTime() === showStartDate.getTime();
+          break;
         
         case 'weekly':
-          return cellDate.getDay() === showStartDate.getDay();
+          shouldShow = cellDate.getDay() === showStartDate.getDay();
+          break;
 
         case 'monthly':
-          return cellDate.getDate() === showStartDate.getDate();
+          shouldShow = cellDate.getDate() === showStartDate.getDate();
+          break;
 
         case 'quarterly':
-          if (cellDate.getDate() !== showStartDate.getDate()) {
-            return false;
+          if (cellDate.getDate() === showStartDate.getDate()) {
+            const monthDiff = (cellDate.getFullYear() - showStartDate.getFullYear()) * 12 + (cellDate.getMonth() - showStartDate.getMonth());
+            shouldShow = monthDiff >= 0 && monthDiff % 3 === 0;
           }
-          const monthDiff = (cellDate.getFullYear() - showStartDate.getFullYear()) * 12 + (cellDate.getMonth() - showStartDate.getMonth());
-          return monthDiff >= 0 && monthDiff % 3 === 0;
+          break;
 
         case 'yearly':
-          return cellDate.getDate() === showStartDate.getDate() && cellDate.getMonth() === showStartDate.getMonth();
+          shouldShow = cellDate.getDate() === showStartDate.getDate() && cellDate.getMonth() === showStartDate.getMonth();
+          break;
 
-        default: // For shows without a frequency, treat as one-time
-          return cellDate.getTime() === showStartDate.getTime();
+        default:
+          shouldShow = cellDate.getTime() === showStartDate.getTime();
+      }
+
+      if (shouldShow) {
+        showsForDate.push(template);
       }
     });
+
+    return showsForDate;
   };
 
-  const handleShowClick = (show: Show, event: React.MouseEvent) => {
+  const handleShowClick = (show: Show, event: React.MouseEvent, clickDate: Date) => {
     event.stopPropagation();
     setSelectedShow(show);
+    setSelectedDate(new Date(clickDate));
     
-    // If the show has matches, show details, otherwise open match booking
-    if (show.matches && show.matches.length > 0) {
+    // If it's an instance or a template with matches, show details
+    if (!show.isTemplate || (show.matches && show.matches.length > 0)) {
       setIsShowDetailsDialogOpen(true);
     } else {
       setIsMatchDialogOpen(true);
@@ -213,6 +303,7 @@ export const CalendarView = () => {
     for (let day = 1; day <= daysInMonth; day++) {
       const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
       const dayShows = getShowsForDate(day);
+      const clickDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
       
       days.push(
         <div
@@ -227,12 +318,15 @@ export const CalendarView = () => {
           <div className="mt-1 space-y-1">
             {dayShows.map((show, index) => (
               <div 
-                key={show.id}
-                className={`text-white text-xs px-1 rounded truncate cursor-pointer hover:opacity-80 ${getBrandColor(show.brand)}`}
-                title={`${show.name}${show.venue ? ` at ${show.venue}` : ''} - Click to view/add matches`}
-                onClick={(e) => handleShowClick(show, e)}
+                key={`${show.id}-${day}`}
+                className={`text-white text-xs px-1 rounded truncate cursor-pointer hover:opacity-80 ${getBrandColor(show.brand)} ${
+                  show.isTemplate ? 'opacity-75' : ''
+                }`}
+                title={`${show.name}${show.venue ? ` at ${show.venue}` : ''} - ${show.matches?.length || 0} matches - Click to ${show.isTemplate ? 'add matches' : 'view details'}`}
+                onClick={(e) => handleShowClick(show, e, clickDate)}
               >
-                {show.name} ({show.matches?.length || 0} matches)
+                {show.name} ({show.matches?.length || 0})
+                {show.isTemplate && <span className="ml-1 text-xs">📅</span>}
               </div>
             ))}
           </div>
@@ -257,7 +351,8 @@ export const CalendarView = () => {
         <DialogContent className="bg-slate-800 border-green-500/30 max-w-4xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white">
-              {selectedShow?.name} - Show Details
+              {selectedShow?.name} - {selectedDate?.toLocaleDateString()}
+              {selectedShow?.isTemplate && " (Recurring Show)"}
             </DialogTitle>
           </DialogHeader>
           {selectedShow && (
@@ -272,9 +367,9 @@ export const CalendarView = () => {
                     </span>
                   </div>
                   <div>
-                    <span className="text-slate-400">Date:</span>
+                    <span className="text-slate-400">Type:</span>
                     <span className="text-white ml-2">
-                      {selectedShow.date ? new Date(selectedShow.date).toLocaleDateString() : "Not set"}
+                      {selectedShow.isTemplate ? "Recurring Template" : "Specific Instance"}
                     </span>
                   </div>
                   {selectedShow.venue && (
@@ -299,7 +394,9 @@ export const CalendarView = () => {
               {/* Matches List */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold text-green-200">Match Card ({selectedShow.matches?.length || 0} matches)</h3>
+                  <h3 className="text-lg font-semibold text-green-200">
+                    Match Card for {selectedDate?.toLocaleDateString()} ({selectedShow.matches?.length || 0} matches)
+                  </h3>
                   <Button onClick={openMatchBooking} className="bg-green-600 hover:bg-green-700">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Match
@@ -338,8 +435,8 @@ export const CalendarView = () => {
                 ) : (
                   <div className="text-center py-8 bg-slate-700/30 rounded-lg border border-green-500/30">
                     <Users className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                    <p className="text-green-200 mb-2">No matches booked yet</p>
-                    <p className="text-sm text-slate-400 mb-4">Start building your match card for this show</p>
+                    <p className="text-green-200 mb-2">No matches booked for this date</p>
+                    <p className="text-sm text-slate-400 mb-4">Start building your match card for {selectedDate?.toLocaleDateString()}</p>
                     <Button onClick={openMatchBooking} className="bg-green-600 hover:bg-green-700">
                       <Plus className="w-4 h-4 mr-2" />
                       Book First Match
@@ -357,7 +454,7 @@ export const CalendarView = () => {
         <DialogContent className="bg-slate-800 border-green-500/30 max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-white">
-              Add Match to {selectedShow?.name}
+              Add Match to {selectedShow?.name} - {selectedDate?.toLocaleDateString()}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -517,6 +614,9 @@ export const CalendarView = () => {
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-purple-600 rounded"></div>
               <span className="text-purple-200 text-sm">Today</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-purple-200 text-sm">📅 = Recurring Show Template</span>
             </div>
           </div>
         </CardContent>
