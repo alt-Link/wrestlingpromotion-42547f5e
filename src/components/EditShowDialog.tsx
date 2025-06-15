@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Calendar as CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -74,12 +75,12 @@ export const EditShowDialog = ({
                       !editingShow.date && "text-slate-400"
                     )}
                   >
-                    <Calendar className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="mr-2 h-4 w-4" />
                     {editingShow.date ? format(editingShow.date, "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent
+                <PopoverContent className="w-auto p-0 bg-white border border-gray-200 shadow-lg z-50" align="start">
+                  <Calendar
                     mode="single"
                     selected={editingShow.date}
                     onSelect={(date) => onEditShow({...editingShow, date})}

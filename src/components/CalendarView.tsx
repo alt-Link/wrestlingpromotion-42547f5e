@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,9 +44,11 @@ export const CalendarView = () => {
     type: "Singles",
     description: ""
   });
+  const [refreshKey, setRefreshKey] = useState(0); // Force re-render when matches change
   const { toast } = useToast();
 
-  useEffect(() => {
+  // Function to refresh shows data
+  const refreshShows = useCallback(() => {
     const savedShows = localStorage.getItem("shows");
     if (savedShows) {
       const parsed = JSON.parse(savedShows);
@@ -59,17 +60,36 @@ export const CalendarView = () => {
         isTemplate: show.isTemplate !== undefined ? show.isTemplate : (show.frequency !== 'one-time')
       }));
       setShows(showsWithDates);
+      setRefreshKey(prev => prev + 1); // Trigger re-render
     }
+  }, []);
+
+  useEffect(() => {
+    refreshShows();
 
     const savedWrestlers = localStorage.getItem("wrestlers");
     if (savedWrestlers) {
       setWrestlers(JSON.parse(savedWrestlers));
     }
-  }, []);
+  }, [refreshShows]);
+
+  // Listen for storage changes to update calendar in real-time
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "shows") {
+        refreshShows();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [refreshShows]);
 
   const saveShows = (updatedShows: Show[]) => {
     setShows(updatedShows);
     localStorage.setItem("shows", JSON.stringify(updatedShows));
+    // Dispatch storage event for real-time updates
+    window.dispatchEvent(new StorageEvent("storage", { key: "shows" }));
   };
 
   const findOrCreateShowInstance = (baseShow: Show, targetDate: Date): Show => {
@@ -150,10 +170,10 @@ export const CalendarView = () => {
     saveShows(updatedShows);
     
     // Update selectedShow to reflect the new match
-    setSelectedShow({
-      ...targetShow,
-      matches: [...(targetShow.matches || []), match]
-    });
+    const updatedTargetShow = updatedShows.find(s => s.id === targetShow.id);
+    if (updatedTargetShow) {
+      setSelectedShow(updatedTargetShow);
+    }
     
     setNewMatch({
       participants: [],
@@ -166,6 +186,9 @@ export const CalendarView = () => {
       title: "Match Added",
       description: `Match has been added to ${targetShow.name} on ${selectedDate.toLocaleDateString()}.`
     });
+
+    // Force calendar refresh
+    refreshShows();
   };
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
@@ -273,11 +296,24 @@ export const CalendarView = () => {
 
   const handleShowClick = (show: Show, event: React.MouseEvent, clickDate: Date) => {
     event.stopPropagation();
-    setSelectedShow(show);
+    
+    // If it's a template, find or get the latest instance data
+    let targetShow = show;
+    if (show.isTemplate) {
+      const existingInstance = shows.find(s => 
+        s.baseShowId === show.id && 
+        s.instanceDate?.toDateString() === clickDate.toDateString()
+      );
+      if (existingInstance) {
+        targetShow = existingInstance;
+      }
+    }
+    
+    setSelectedShow(targetShow);
     setSelectedDate(new Date(clickDate));
     
     // If it's an instance or a template with matches, show details
-    if (!show.isTemplate || (show.matches && show.matches.length > 0)) {
+    if (!targetShow.isTemplate || (targetShow.matches && targetShow.matches.length > 0)) {
       setIsShowDetailsDialogOpen(true);
     } else {
       setIsMatchDialogOpen(true);
@@ -318,7 +354,7 @@ export const CalendarView = () => {
           <div className="mt-1 space-y-1">
             {dayShows.map((show, index) => (
               <div 
-                key={`${show.id}-${day}`}
+                key={`${show.id}-${day}-${refreshKey}`}
                 className={`text-white text-xs px-1 rounded truncate cursor-pointer hover:opacity-80 ${getBrandColor(show.brand)} ${
                   show.isTemplate ? 'opacity-75' : ''
                 }`}
