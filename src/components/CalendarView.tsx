@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Trophy, Clock, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Show {
@@ -34,6 +35,7 @@ export const CalendarView = () => {
   const [wrestlers, setWrestlers] = useState<any[]>([]);
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [isMatchDialogOpen, setIsMatchDialogOpen] = useState(false);
+  const [isShowDetailsDialogOpen, setIsShowDetailsDialogOpen] = useState(false);
   const [newMatch, setNewMatch] = useState<Partial<Match>>({
     participants: [],
     type: "Singles",
@@ -91,6 +93,14 @@ export const CalendarView = () => {
 
     saveShows(updatedShows);
     
+    // Update selectedShow to reflect the new match
+    if (selectedShow) {
+      setSelectedShow({
+        ...selectedShow,
+        matches: [...(selectedShow.matches || []), match]
+      });
+    }
+    
     setNewMatch({
       participants: [],
       type: "Singles",
@@ -143,8 +153,20 @@ export const CalendarView = () => {
     });
   };
 
-  const handleShowClick = (show: Show) => {
+  const handleShowClick = (show: Show, event: React.MouseEvent) => {
+    event.stopPropagation();
     setSelectedShow(show);
+    
+    // If the show has matches, show details, otherwise open match booking
+    if (show.matches && show.matches.length > 0) {
+      setIsShowDetailsDialogOpen(true);
+    } else {
+      setIsMatchDialogOpen(true);
+    }
+  };
+
+  const openMatchBooking = () => {
+    setIsShowDetailsDialogOpen(false);
     setIsMatchDialogOpen(true);
   };
 
@@ -178,8 +200,8 @@ export const CalendarView = () => {
               <div 
                 key={show.id}
                 className={`text-white text-xs px-1 rounded truncate cursor-pointer hover:opacity-80 ${getBrandColor(show.brand)}`}
-                title={`${show.name}${show.venue ? ` at ${show.venue}` : ''} - Click to add matches`}
-                onClick={() => handleShowClick(show)}
+                title={`${show.name}${show.venue ? ` at ${show.venue}` : ''} - Click to view/add matches`}
+                onClick={(e) => handleShowClick(show, e)}
               >
                 {show.name} ({show.matches?.length || 0} matches)
               </div>
@@ -200,6 +222,106 @@ export const CalendarView = () => {
           <h2 className="text-2xl font-bold text-white">Calendar View</h2>
         </div>
       </div>
+
+      {/* Show Details Dialog */}
+      <Dialog open={isShowDetailsDialogOpen} onOpenChange={setIsShowDetailsDialogOpen}>
+        <DialogContent className="bg-slate-800 border-green-500/30 max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              {selectedShow?.name} - Show Details
+            </DialogTitle>
+          </DialogHeader>
+          {selectedShow && (
+            <div className="space-y-6">
+              {/* Show Information */}
+              <div className="bg-slate-700/50 border border-green-500/30 rounded-lg p-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-400">Brand:</span>
+                    <span className={`ml-2 px-2 py-1 rounded text-xs text-white ${getBrandColor(selectedShow.brand)}`}>
+                      {selectedShow.brand}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Date:</span>
+                    <span className="text-white ml-2">
+                      {selectedShow.date ? new Date(selectedShow.date).toLocaleDateString() : "Not set"}
+                    </span>
+                  </div>
+                  {selectedShow.venue && (
+                    <div>
+                      <span className="text-slate-400">Venue:</span>
+                      <span className="text-white ml-2">{selectedShow.venue}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-slate-400">Frequency:</span>
+                    <span className="text-white ml-2">{selectedShow.frequency}</span>
+                  </div>
+                </div>
+                {selectedShow.description && (
+                  <div className="mt-4">
+                    <span className="text-slate-400">Description:</span>
+                    <p className="text-white mt-1">{selectedShow.description}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Matches List */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold text-green-200">Match Card ({selectedShow.matches?.length || 0} matches)</h3>
+                  <Button onClick={openMatchBooking} className="bg-green-600 hover:bg-green-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Match
+                  </Button>
+                </div>
+                
+                {selectedShow.matches && selectedShow.matches.length > 0 ? (
+                  <div className="space-y-3">
+                    {selectedShow.matches.map((match, index) => (
+                      <div key={match.id} className="bg-slate-700/50 border border-green-500/30 rounded-lg p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-white">{match.participants.join(" vs ")}</h4>
+                            <p className="text-sm text-green-200">{match.type}</p>
+                          </div>
+                          <span className="text-sm text-slate-400">Match #{index + 1}</span>
+                        </div>
+                        
+                        {match.championship && (
+                          <div className="flex items-center text-sm text-yellow-400 mb-1">
+                            <Trophy className="w-4 h-4 mr-1" />
+                            Championship: {match.championship}
+                          </div>
+                        )}
+                        
+                        {match.stipulation && (
+                          <p className="text-sm text-orange-400 mb-1">Stipulation: {match.stipulation}</p>
+                        )}
+                        
+                        {match.description && (
+                          <p className="text-sm text-slate-300">{match.description}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 bg-slate-700/30 rounded-lg border border-green-500/30">
+                    <Users className="w-8 h-8 text-green-400 mx-auto mb-2" />
+                    <p className="text-green-200 mb-2">No matches booked yet</p>
+                    <p className="text-sm text-slate-400 mb-4">Start building your match card for this show</p>
+                    <Button onClick={openMatchBooking} className="bg-green-600 hover:bg-green-700">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Book First Match
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Match Booking Dialog */}
       <Dialog open={isMatchDialogOpen} onOpenChange={setIsMatchDialogOpen}>

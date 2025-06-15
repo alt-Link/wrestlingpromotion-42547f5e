@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trophy, Users, Calendar, Zap, Star, Shield } from "lucide-react";
+import { Trophy, Users, Calendar, Zap, Star, Shield, Clock } from "lucide-react";
 
 interface UniverseData {
   totalWrestlers: number;
@@ -9,7 +9,7 @@ interface UniverseData {
   upcomingShows: number;
   activeRivalries: number;
   totalMatches: number;
-  recentActivity: string[];
+  upcomingMatches: any[];
 }
 
 export const UniverseStats = () => {
@@ -19,7 +19,7 @@ export const UniverseStats = () => {
     upcomingShows: 0,
     activeRivalries: 0,
     totalMatches: 0,
-    recentActivity: []
+    upcomingMatches: []
   });
 
   useEffect(() => {
@@ -29,18 +29,28 @@ export const UniverseStats = () => {
     const shows = JSON.parse(localStorage.getItem("shows") || "[]");
     const rivalries = JSON.parse(localStorage.getItem("rivalries") || "[]");
 
+    // Get upcoming shows and their matches
+    const upcomingShows = shows.filter((s: any) => new Date(s.date) > new Date());
+    const upcomingMatches = upcomingShows.reduce((acc: any[], show: any) => {
+      if (show.matches && show.matches.length > 0) {
+        const showMatches = show.matches.map((match: any) => ({
+          ...match,
+          showName: show.name,
+          showDate: show.date,
+          showBrand: show.brand
+        }));
+        return [...acc, ...showMatches];
+      }
+      return acc;
+    }, []).slice(0, 10); // Limit to 10 upcoming matches
+
     setStats({
       totalWrestlers: wrestlers.length,
       activeChampionships: championships.filter((c: any) => c.currentChampion).length,
-      upcomingShows: shows.filter((s: any) => new Date(s.date) > new Date()).length,
+      upcomingShows: upcomingShows.length,
       activeRivalries: rivalries.filter((r: any) => r.status === "active").length,
       totalMatches: shows.reduce((acc: number, show: any) => acc + (show.matches?.length || 0), 0),
-      recentActivity: [
-        "John Cena defeated Roman Reigns for the WWE Championship",
-        "New rivalry started between Seth Rollins and CM Punk",
-        "Monday Night Raw booked for next week",
-        "Cody Rhodes added to roster"
-      ]
+      upcomingMatches
     });
   }, []);
 
@@ -77,6 +87,17 @@ export const UniverseStats = () => {
     }
   ];
 
+  const getBrandColor = (brand: string) => {
+    switch (brand) {
+      case "Raw": return "border-red-500/30 bg-red-500/10";
+      case "SmackDown": return "border-blue-500/30 bg-blue-500/10";
+      case "NXT": return "border-yellow-500/30 bg-yellow-500/10";
+      case "PPV": return "border-orange-500/30 bg-orange-500/10";
+      case "Special": return "border-green-500/30 bg-green-500/10";
+      default: return "border-gray-500/30 bg-gray-500/10";
+    }
+  };
+
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
@@ -101,18 +122,43 @@ export const UniverseStats = () => {
         <Card className="bg-slate-800/50 border-purple-500/30">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
-              <Shield className="w-5 h-5 mr-2 text-purple-400" />
-              Recent Activity
+              <Calendar className="w-5 h-5 mr-2 text-purple-400" />
+              Upcoming Matches
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {stats.recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-center space-x-3 p-3 bg-slate-700/30 rounded-lg">
-                  <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                  <p className="text-purple-100 text-sm">{activity}</p>
+              {stats.upcomingMatches.length > 0 ? (
+                stats.upcomingMatches.map((match, index) => (
+                  <div key={index} className={`p-3 rounded-lg border ${getBrandColor(match.showBrand)}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-white">{match.participants.join(" vs ")}</h4>
+                        <p className="text-sm text-purple-200">{match.type}</p>
+                        {match.championship && (
+                          <p className="text-sm text-yellow-400">Championship: {match.championship}</p>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-purple-300">{match.showName}</p>
+                        <p className="text-xs text-purple-400">
+                          <Clock className="w-3 h-3 inline mr-1" />
+                          {new Date(match.showDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    {match.stipulation && (
+                      <p className="text-xs text-orange-400">Stipulation: {match.stipulation}</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6">
+                  <Calendar className="w-8 h-8 text-purple-400 mx-auto mb-2" />
+                  <p className="text-purple-200">No upcoming matches scheduled</p>
+                  <p className="text-sm text-purple-400">Book some shows to see upcoming matches here</p>
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
