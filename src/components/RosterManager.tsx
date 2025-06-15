@@ -28,6 +28,7 @@ export const RosterManager = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterBrand, setFilterBrand] = useState("all");
   const [filterAlignment, setFilterAlignment] = useState("all");
+  const [filterDivision, setFilterDivision] = useState("all");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingWrestler, setEditingWrestler] = useState<Wrestler | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -200,9 +201,18 @@ export const RosterManager = () => {
     const matchesSearch = wrestler.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBrand = filterBrand === "all" || wrestler.brand === filterBrand;
     const matchesAlignment = filterAlignment === "all" || wrestler.alignment === filterAlignment;
+    const matchesDivision = filterDivision === "all" || 
+      (filterDivision === "mens" && wrestler.gender === "Male") ||
+      (filterDivision === "womens" && wrestler.gender === "Female");
     
-    return matchesSearch && matchesBrand && matchesAlignment;
+    return matchesSearch && matchesBrand && matchesAlignment && matchesDivision;
   });
+
+  // Group wrestlers by division for active roster
+  const groupedWrestlers = !showFreeAgents ? {
+    mens: filteredWrestlers.filter(w => w.gender === "Male"),
+    womens: filteredWrestlers.filter(w => w.gender === "Female")
+  } : null;
 
   const getBrandColor = (brand: string) => {
     switch (brand) {
@@ -223,6 +233,89 @@ export const RosterManager = () => {
       default: return "bg-gray-500";
     }
   };
+
+  const renderWrestlerCard = (wrestler: Wrestler) => (
+    <Card key={wrestler.id} className="bg-slate-800/50 border-purple-500/30 hover:border-purple-400/50 transition-colors">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-white text-lg">{wrestler.name}</CardTitle>
+          <div className="flex space-x-2">
+            {showFreeAgents ? (
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="text-green-400 hover:bg-green-500/20"
+                onClick={() => {
+                  setSelectedFreeAgent(wrestler);
+                  setIsFreeAgentDialogOpen(true);
+                }}
+              >
+                <UserCheck className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="text-purple-400 hover:bg-purple-500/20"
+                onClick={() => editWrestler(wrestler)}
+              >
+                <Edit className="w-4 h-4" />
+              </Button>
+            )}
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="text-red-400 hover:bg-red-500/20"
+              onClick={() => showFreeAgents ? deleteFreeAgent(wrestler.id) : deleteWrestler(wrestler.id)}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Badge className={`${getBrandColor(wrestler.brand)} text-white`}>
+            {wrestler.brand}
+          </Badge>
+          <Badge className={`${getAlignmentColor(wrestler.alignment)} text-white`}>
+            {wrestler.alignment}
+          </Badge>
+          <Badge variant="outline" className="border-purple-500/30 text-purple-200">
+            {wrestler.gender}
+          </Badge>
+          {wrestler.injured && (
+            <Badge variant="destructive">Injured</Badge>
+          )}
+        </div>
+        
+        {wrestler.titles.length > 0 && (
+          <div>
+            <p className="text-sm text-purple-200 mb-1">Championships:</p>
+            <div className="flex flex-wrap gap-1">
+              {wrestler.titles.map((title, index) => (
+                <Badge key={index} className="bg-yellow-500 text-black text-xs">
+                  {title}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {wrestler.manager && (
+          <p className="text-sm text-purple-200">
+            <span className="font-medium">Manager:</span> {wrestler.manager}
+          </p>
+        )}
+        
+        {wrestler.faction && (
+          <p className="text-sm text-purple-200">
+            <span className="font-medium">Faction:</span> {wrestler.faction}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="space-y-6">
@@ -334,7 +427,6 @@ export const RosterManager = () => {
         </div>
       </div>
 
-      {/* Edit Wrestler Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="bg-slate-800 border-purple-500/30">
           <DialogHeader>
@@ -440,7 +532,6 @@ export const RosterManager = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Free Agent Signing Dialog */}
       <Dialog open={isFreeAgentDialogOpen} onOpenChange={setIsFreeAgentDialogOpen}>
         <DialogContent className="bg-slate-800 border-purple-500/30">
           <DialogHeader>
@@ -517,93 +608,53 @@ export const RosterManager = () => {
             <SelectItem value="Tweener">Tweener</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterDivision} onValueChange={setFilterDivision}>
+          <SelectTrigger className="w-40 bg-slate-700 border-purple-500/30 text-white">
+            <SelectValue placeholder="Filter by division" />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-700 border-purple-500/30">
+            <SelectItem value="all">All Divisions</SelectItem>
+            <SelectItem value="mens">Men's Division</SelectItem>
+            <SelectItem value="womens">Women's Division</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Wrestler Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredWrestlers.map((wrestler) => (
-          <Card key={wrestler.id} className="bg-slate-800/50 border-purple-500/30 hover:border-purple-400/50 transition-colors">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-white text-lg">{wrestler.name}</CardTitle>
-                <div className="flex space-x-2">
-                  {showFreeAgents ? (
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="text-green-400 hover:bg-green-500/20"
-                      onClick={() => {
-                        setSelectedFreeAgent(wrestler);
-                        setIsFreeAgentDialogOpen(true);
-                      }}
-                    >
-                      <UserCheck className="w-4 h-4" />
-                    </Button>
-                  ) : (
-                    <Button 
-                      size="sm" 
-                      variant="ghost" 
-                      className="text-purple-400 hover:bg-purple-500/20"
-                      onClick={() => editWrestler(wrestler)}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                  )}
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-red-400 hover:bg-red-500/20"
-                    onClick={() => showFreeAgents ? deleteFreeAgent(wrestler.id) : deleteWrestler(wrestler.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
+      {/* Wrestler Display */}
+      {!showFreeAgents && groupedWrestlers ? (
+        <div className="space-y-8">
+          {/* Men's Division */}
+          {groupedWrestlers.mens.length > 0 && (
+            <div>
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-blue-400" />
+                Men's Division ({groupedWrestlers.mens.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {groupedWrestlers.mens.map(renderWrestlerCard)}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <Badge className={`${getBrandColor(wrestler.brand)} text-white`}>
-                  {wrestler.brand}
-                </Badge>
-                <Badge className={`${getAlignmentColor(wrestler.alignment)} text-white`}>
-                  {wrestler.alignment}
-                </Badge>
-                <Badge variant="outline" className="border-purple-500/30 text-purple-200">
-                  {wrestler.gender}
-                </Badge>
-                {wrestler.injured && (
-                  <Badge variant="destructive">Injured</Badge>
-                )}
+            </div>
+          )}
+
+          {/* Women's Division */}
+          {groupedWrestlers.womens.length > 0 && (
+            <div>
+              <h3 className="text-xl font-bold text-white mb-4 flex items-center">
+                <Users className="w-5 h-5 mr-2 text-pink-400" />
+                Women's Division ({groupedWrestlers.womens.length})
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {groupedWrestlers.womens.map(renderWrestlerCard)}
               </div>
-              
-              {wrestler.titles.length > 0 && (
-                <div>
-                  <p className="text-sm text-purple-200 mb-1">Championships:</p>
-                  <div className="flex flex-wrap gap-1">
-                    {wrestler.titles.map((title, index) => (
-                      <Badge key={index} className="bg-yellow-500 text-black text-xs">
-                        {title}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {wrestler.manager && (
-                <p className="text-sm text-purple-200">
-                  <span className="font-medium">Manager:</span> {wrestler.manager}
-                </p>
-              )}
-              
-              {wrestler.faction && (
-                <p className="text-sm text-purple-200">
-                  <span className="font-medium">Faction:</span> {wrestler.faction}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Free Agents Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredWrestlers.map(renderWrestlerCard)}
+        </div>
+      )}
 
       {filteredWrestlers.length === 0 && (
         <Card className="bg-slate-800/50 border-purple-500/30">
