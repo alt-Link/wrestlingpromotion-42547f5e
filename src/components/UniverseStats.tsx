@@ -10,6 +10,7 @@ interface UniverseData {
   activeRivalries: number;
   totalMatches: number;
   upcomingMatches: any[];
+  currentChampions: any[];
 }
 
 export const UniverseStats = () => {
@@ -19,7 +20,8 @@ export const UniverseStats = () => {
     upcomingShows: 0,
     activeRivalries: 0,
     totalMatches: 0,
-    upcomingMatches: []
+    upcomingMatches: [],
+    currentChampions: []
   });
 
   useEffect(() => {
@@ -29,28 +31,102 @@ export const UniverseStats = () => {
     const shows = JSON.parse(localStorage.getItem("shows") || "[]");
     const rivalries = JSON.parse(localStorage.getItem("rivalries") || "[]");
 
-    // Get upcoming shows and their matches
-    const upcomingShows = shows.filter((s: any) => new Date(s.date) > new Date());
-    const upcomingMatches = upcomingShows.reduce((acc: any[], show: any) => {
-      if (show.matches && show.matches.length > 0) {
-        const showMatches = show.matches.map((match: any) => ({
-          ...match,
-          showName: show.name,
-          showDate: show.date,
-          showBrand: show.brand
-        }));
-        return [...acc, ...showMatches];
+    // Process shows to get upcoming matches
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    const upcomingMatches: any[] = [];
+    const upcomingShowsCount = new Set();
+
+    // Process all shows to find upcoming matches
+    shows.forEach((show: any) => {
+      let showDate: Date | null = null;
+      let isUpcoming = false;
+
+      // Handle specific instances
+      if (!show.isTemplate && show.instanceDate) {
+        showDate = new Date(show.instanceDate);
+        showDate.setHours(0, 0, 0, 0);
+        isUpcoming = showDate >= now;
       }
-      return acc;
-    }, []).slice(0, 10); // Limit to 10 upcoming matches
+      // Handle templates that recur
+      else if (show.isTemplate && show.date) {
+        const templateDate = new Date(show.date);
+        templateDate.setHours(0, 0, 0, 0);
+        
+        // Find next occurrence based on frequency
+        const daysDiff = Math.floor((now.getTime() - templateDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        switch (show.frequency) {
+          case 'weekly':
+            if (daysDiff >= 0) {
+              const weeksAhead = Math.ceil(daysDiff / 7);
+              showDate = new Date(templateDate);
+              showDate.setDate(templateDate.getDate() + (weeksAhead * 7));
+              isUpcoming = true;
+            }
+            break;
+          case 'monthly':
+            if (daysDiff >= 0) {
+              showDate = new Date(templateDate);
+              showDate.setMonth(now.getMonth() + (now.getDate() >= templateDate.getDate() ? 1 : 0));
+              isUpcoming = true;
+            }
+            break;
+          case 'one-time':
+            showDate = templateDate;
+            isUpcoming = showDate >= now;
+            break;
+        }
+      }
+
+      if (isUpcoming && showDate) {
+        // Count upcoming shows
+        upcomingShowsCount.add(`${show.name}-${showDate.toDateString()}`);
+        
+        // Add matches from this show
+        if (show.matches && show.matches.length > 0) {
+          show.matches.forEach((match: any) => {
+            upcomingMatches.push({
+              ...match,
+              showName: show.name,
+              showDate: showDate!.toISOString(),
+              showBrand: show.brand
+            });
+          });
+        }
+      }
+    });
+
+    // Sort upcoming matches by date and limit to 10
+    upcomingMatches.sort((a, b) => new Date(a.showDate).getTime() - new Date(b.showDate).getTime());
+    const limitedUpcomingMatches = upcomingMatches.slice(0, 10);
+
+    // Get current champions with reign data
+    const currentChampions = championships
+      .filter((c: any) => c.currentChampion && !c.retired)
+      .map((c: any) => {
+        const reignLength = c.reignStart ? 
+          Math.floor((new Date().getTime() - new Date(c.reignStart).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+        
+        return {
+          title: c.name,
+          champion: c.currentChampion,
+          reignStart: c.reignStart,
+          reignLength,
+          brand: c.brand
+        };
+      })
+      .sort((a, b) => b.reignLength - a.reignLength); // Sort by longest reign first
 
     setStats({
       totalWrestlers: wrestlers.length,
-      activeChampionships: championships.filter((c: any) => c.currentChampion).length,
-      upcomingShows: upcomingShows.length,
+      activeChampionships: championships.filter((c: any) => c.currentChampion && !c.retired).length,
+      upcomingShows: upcomingShowsCount.size,
       activeRivalries: rivalries.filter((r: any) => r.status === "active").length,
       totalMatches: shows.reduce((acc: number, show: any) => acc + (show.matches?.length || 0), 0),
-      upcomingMatches
+      upcomingMatches: limitedUpcomingMatches,
+      currentChampions
     });
   }, []);
 
@@ -95,6 +171,15 @@ export const UniverseStats = () => {
       case "PPV": return "border-orange-500/30 bg-orange-500/10";
       case "Special": return "border-green-500/30 bg-green-500/10";
       default: return "border-gray-500/30 bg-gray-500/10";
+    }
+  };
+
+  const getChampionshipBrandColor = (brand: string) => {
+    switch (brand) {
+      case "Raw": return "from-red-500/20 to-red-600/20 border-red-500/30";
+      case "SmackDown": return "from-blue-500/20 to-blue-600/20 border-blue-500/30";
+      case "NXT": return "from-yellow-500/20 to-yellow-600/20 border-yellow-500/30";
+      default: return "from-purple-500/20 to-purple-600/20 border-purple-500/30";
     }
   };
 
@@ -172,16 +257,36 @@ export const UniverseStats = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 p-4 rounded-lg border border-yellow-500/30">
-                <h3 className="font-bold text-yellow-400">WWE Championship</h3>
-                <p className="text-white">John Cena - 45 days</p>
-                <p className="text-purple-200 text-sm">Next Defense: SummerSlam</p>
-              </div>
-              <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 p-4 rounded-lg border border-blue-500/30">
-                <h3 className="font-bold text-blue-400">Universal Championship</h3>
-                <p className="text-white">Roman Reigns - 127 days</p>
-                <p className="text-purple-200 text-sm">Next Defense: Monday Night Raw</p>
-              </div>
+              {stats.currentChampions.length > 0 ? (
+                stats.currentChampions.slice(0, 4).map((champion, index) => (
+                  <div key={index} className={`bg-gradient-to-r ${getChampionshipBrandColor(champion.brand)} p-4 rounded-lg border`}>
+                    <h3 className="font-bold text-yellow-400">{champion.title}</h3>
+                    <p className="text-white font-semibold">{champion.champion}</p>
+                    <div className="flex justify-between items-center mt-2">
+                      <p className="text-purple-200 text-sm">
+                        Reign: {champion.reignLength} days
+                      </p>
+                      <p className="text-purple-400 text-xs">
+                        Since {new Date(champion.reignStart).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-6">
+                  <Trophy className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                  <p className="text-purple-200">No active champions</p>
+                  <p className="text-sm text-purple-400">Assign champions to see them here</p>
+                </div>
+              )}
+              
+              {stats.currentChampions.length > 4 && (
+                <div className="text-center pt-2 border-t border-purple-500/30">
+                  <p className="text-purple-400 text-sm">
+                    +{stats.currentChampions.length - 4} more champions
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
