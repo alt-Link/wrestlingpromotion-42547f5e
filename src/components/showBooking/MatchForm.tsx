@@ -90,7 +90,7 @@ export const MatchForm = ({
             <SelectValue placeholder="Championship (optional)" />
           </SelectTrigger>
           <SelectContent className="bg-slate-700 border-orange-500/30">
-            <SelectItem value="">No Championship</SelectItem>
+            <SelectItem value="none">No Championship</SelectItem>
             {championships.filter((c: any) => !c.retired).map((championship: any) => (
               <SelectItem key={championship.id} value={championship.name}>
                 {championship.name}
