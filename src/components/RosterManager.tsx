@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Search, Users, Edit, Trash2, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUniverseData } from "@/hooks/useUniverseData";
 
 interface Wrestler {
   id: string;
@@ -16,17 +17,13 @@ interface Wrestler {
   brand: string;
   alignment: string;
   gender: string;
-  titles: string[];
   manager?: string;
   faction?: string;
   injured: boolean;
-  break: boolean;
-  customAttributes: Record<string, string>;
+  on_break: boolean;
 }
 
 export const RosterManager = () => {
-  const [wrestlers, setWrestlers] = useState<Wrestler[]>([]);
-  const [freeAgents, setFreeAgents] = useState<Wrestler[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterBrand, setFilterBrand] = useState("all");
   const [filterAlignment, setFilterAlignment] = useState("all");
@@ -38,45 +35,25 @@ export const RosterManager = () => {
   const [selectedFreeAgent, setSelectedFreeAgent] = useState<Wrestler | null>(null);
   const [showFreeAgents, setShowFreeAgents] = useState(false);
   const { toast } = useToast();
+  const { data, loading, saveWrestler, deleteRecord } = useUniverseData();
+
+  const wrestlers = data.wrestlers || [];
 
   const [newWrestler, setNewWrestler] = useState<Partial<Wrestler>>({
     name: "",
     brand: "Raw",
-    alignment: "Face",
-    gender: "Male",
-    titles: [],
+    alignment: "face",
+    gender: "male",
     injured: false,
-    break: false,
-    customAttributes: {}
+    on_break: false
   });
-
-  useEffect(() => {
-    const savedWrestlers = localStorage.getItem("wrestlers");
-    const savedFreeAgents = localStorage.getItem("freeAgents");
-    if (savedWrestlers) {
-      setWrestlers(JSON.parse(savedWrestlers));
-    }
-    if (savedFreeAgents) {
-      setFreeAgents(JSON.parse(savedFreeAgents));
-    }
-  }, []);
-
-  const saveWrestlers = (updatedWrestlers: Wrestler[]) => {
-    setWrestlers(updatedWrestlers);
-    localStorage.setItem("wrestlers", JSON.stringify(updatedWrestlers));
-  };
-
-  const saveFreeAgents = (updatedFreeAgents: Wrestler[]) => {
-    setFreeAgents(updatedFreeAgents);
-    localStorage.setItem("freeAgents", JSON.stringify(updatedFreeAgents));
-  };
 
   const editWrestler = (wrestler: Wrestler) => {
     setEditingWrestler({...wrestler});
     setIsEditDialogOpen(true);
   };
 
-  const saveEditedWrestler = () => {
+  const saveEditedWrestler = async () => {
     if (!editingWrestler?.name?.trim()) {
       toast({
         title: "Error",
@@ -86,10 +63,16 @@ export const RosterManager = () => {
       return;
     }
 
-    const updatedWrestlers = wrestlers.map(w => 
-      w.id === editingWrestler.id ? editingWrestler : w
-    );
-    saveWrestlers(updatedWrestlers);
+    const { error } = await saveWrestler(editingWrestler);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update wrestler. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setEditingWrestler(null);
     setIsEditDialogOpen(false);
@@ -100,34 +83,44 @@ export const RosterManager = () => {
     });
   };
 
-  const releaseWrestler = (id: string) => {
+  const releaseWrestler = async (id: string) => {
     const wrestler = wrestlers.find(w => w.id === id);
-    if (wrestler) {
-      // Move to free agents
-      const releasedWrestler = { ...wrestler, brand: "Free Agent" };
-      const updatedWrestlers = wrestlers.filter(w => w.id !== id);
-      const updatedFreeAgents = [...freeAgents, releasedWrestler];
-      
-      saveWrestlers(updatedWrestlers);
-      saveFreeAgents(updatedFreeAgents);
-      
-      setEditingWrestler(null);
-      setIsEditDialogOpen(false);
-      
+    if (!wrestler) return;
+
+    // Move to free agents by updating brand
+    const releasedWrestler = { ...wrestler, brand: "Free Agent" };
+    const { error } = await saveWrestler(releasedWrestler);
+    
+    if (error) {
       toast({
-        title: "Wrestler Released",
-        description: `${wrestler.name} has been released and moved to the free agent pool.`
+        title: "Error",
+        description: "Failed to release wrestler. Please try again.",
+        variant: "destructive"
       });
+      return;
     }
+    
+    setEditingWrestler(null);
+    setIsEditDialogOpen(false);
+    
+    toast({
+      title: "Wrestler Released",
+      description: `${wrestler.name} has been released and moved to the free agent pool.`
+    });
   };
 
-  const signFreeAgent = (freeAgent: Wrestler, newBrand: string) => {
+  const signFreeAgent = async (freeAgent: Wrestler, newBrand: string) => {
     const signedWrestler = { ...freeAgent, brand: newBrand };
-    const updatedFreeAgents = freeAgents.filter(fa => fa.id !== freeAgent.id);
-    const updatedWrestlers = [...wrestlers, signedWrestler];
+    const { error } = await saveWrestler(signedWrestler);
     
-    saveWrestlers(updatedWrestlers);
-    saveFreeAgents(updatedFreeAgents);
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign free agent. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setSelectedFreeAgent(null);
     setIsFreeAgentDialogOpen(false);
@@ -138,7 +131,7 @@ export const RosterManager = () => {
     });
   };
 
-  const addWrestler = () => {
+  const addWrestler = async () => {
     if (!newWrestler.name?.trim()) {
       toast({
         title: "Error",
@@ -148,32 +141,35 @@ export const RosterManager = () => {
       return;
     }
 
-    const wrestler: Wrestler = {
-      id: Date.now().toString(),
+    const wrestler = {
       name: newWrestler.name!,
       brand: newWrestler.brand || "Raw",
-      alignment: newWrestler.alignment || "Face",
-      gender: newWrestler.gender || "Male",
-      titles: newWrestler.titles || [],
+      alignment: newWrestler.alignment || "face",
+      gender: newWrestler.gender || "male",
       manager: newWrestler.manager,
       faction: newWrestler.faction,
       injured: newWrestler.injured || false,
-      break: newWrestler.break || false,
-      customAttributes: newWrestler.customAttributes || {}
+      on_break: newWrestler.on_break || false
     };
 
-    const updatedWrestlers = [...wrestlers, wrestler];
-    saveWrestlers(updatedWrestlers);
+    const { error } = await saveWrestler(wrestler);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add wrestler. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setNewWrestler({
       name: "",
       brand: "Raw",
-      alignment: "Face",
-      gender: "Male",
-      titles: [],
+      alignment: "face",
+      gender: "male",
       injured: false,
-      break: false,
-      customAttributes: {}
+      on_break: false
     });
     setIsAddDialogOpen(false);
     
@@ -183,40 +179,44 @@ export const RosterManager = () => {
     });
   };
 
-  const deleteWrestler = (id: string) => {
-    const updatedWrestlers = wrestlers.filter(w => w.id !== id);
-    saveWrestlers(updatedWrestlers);
+  const deleteWrestler = async (id: string) => {
+    const { error } = await deleteRecord('wrestlers', id);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete wrestler. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     toast({
       title: "Wrestler Removed",
       description: "Wrestler has been removed from the roster."
     });
   };
 
-  const deleteFreeAgent = (id: string) => {
-    const updatedFreeAgents = freeAgents.filter(fa => fa.id !== id);
-    saveFreeAgents(updatedFreeAgents);
-    toast({
-      title: "Free Agent Removed",
-      description: "Free agent has been permanently removed."
-    });
-  };
+  // Filter wrestlers based on current view (active roster or free agents)
+  const currentList = showFreeAgents 
+    ? wrestlers.filter(w => w.brand === "Free Agent")
+    : wrestlers.filter(w => w.brand !== "Free Agent");
 
-  const currentList = showFreeAgents ? freeAgents : wrestlers;
   const filteredWrestlers = currentList.filter(wrestler => {
     const matchesSearch = wrestler.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesBrand = filterBrand === "all" || wrestler.brand === filterBrand;
     const matchesAlignment = filterAlignment === "all" || wrestler.alignment === filterAlignment;
     const matchesDivision = filterDivision === "all" || 
-      (filterDivision === "mens" && wrestler.gender === "Male") ||
-      (filterDivision === "womens" && wrestler.gender === "Female");
+      (filterDivision === "mens" && wrestler.gender === "male") ||
+      (filterDivision === "womens" && wrestler.gender === "female");
     
     return matchesSearch && matchesBrand && matchesAlignment && matchesDivision;
   });
 
   // Group wrestlers by division for active roster
   const groupedWrestlers = !showFreeAgents ? {
-    mens: filteredWrestlers.filter(w => w.gender === "Male"),
-    womens: filteredWrestlers.filter(w => w.gender === "Female")
+    mens: filteredWrestlers.filter(w => w.gender === "male"),
+    womens: filteredWrestlers.filter(w => w.gender === "female")
   } : null;
 
   const getBrandColor = (brand: string) => {
@@ -232,9 +232,9 @@ export const RosterManager = () => {
 
   const getAlignmentColor = (alignment: string) => {
     switch (alignment) {
-      case "Face": return "bg-green-500";
-      case "Heel": return "bg-red-500";
-      case "Tweener": return "bg-yellow-500";
+      case "face": return "bg-green-500";
+      case "heel": return "bg-red-500";
+      case "tweener": return "bg-yellow-500";
       default: return "bg-gray-500";
     }
   };
@@ -271,7 +271,7 @@ export const RosterManager = () => {
               size="sm" 
               variant="ghost" 
               className="text-red-400 hover:bg-red-500/20"
-              onClick={() => showFreeAgents ? deleteFreeAgent(wrestler.id) : deleteWrestler(wrestler.id)}
+              onClick={() => deleteWrestler(wrestler.id)}
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -292,23 +292,10 @@ export const RosterManager = () => {
           {wrestler.injured && (
             <Badge variant="destructive">Injured</Badge>
           )}
-          {wrestler.break && (
+          {wrestler.on_break && (
             <Badge className="bg-orange-500 text-white">On Break</Badge>
           )}
         </div>
-        
-        {wrestler.titles.length > 0 && (
-          <div>
-            <p className="text-sm text-purple-200 mb-1">Championships:</p>
-            <div className="flex flex-wrap gap-1">
-              {wrestler.titles.map((title, index) => (
-                <Badge key={index} className="bg-yellow-500 text-black text-xs">
-                  {title}
-                </Badge>
-              ))}
-            </div>
-          </div>
-        )}
         
         {wrestler.manager && (
           <p className="text-sm text-purple-200">
@@ -325,13 +312,24 @@ export const RosterManager = () => {
     </Card>
   );
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+      </div>
+    );
+  }
+
+  const activeRosterCount = wrestlers.filter(w => w.brand !== "Free Agent").length;
+  const freeAgentsCount = wrestlers.filter(w => w.brand === "Free Agent").length;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-2">
           <Users className="w-6 h-6 text-purple-400" />
           <h2 className="text-2xl font-bold text-white">
-            {showFreeAgents ? `Free Agents (${freeAgents.length})` : `Active Roster (${wrestlers.length})`}
+            {showFreeAgents ? `Free Agents (${freeAgentsCount})` : `Active Roster (${activeRosterCount})`}
           </h2>
         </div>
         <div className="flex space-x-3">
@@ -387,9 +385,9 @@ export const RosterManager = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-700 border-purple-500/30">
-                        <SelectItem value="Face">Face</SelectItem>
-                        <SelectItem value="Heel">Heel</SelectItem>
-                        <SelectItem value="Tweener">Tweener</SelectItem>
+                        <SelectItem value="face">Face</SelectItem>
+                        <SelectItem value="heel">Heel</SelectItem>
+                        <SelectItem value="tweener">Tweener</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -401,8 +399,8 @@ export const RosterManager = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-700 border-purple-500/30">
-                      <SelectItem value="Male">Male</SelectItem>
-                      <SelectItem value="Female">Female</SelectItem>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -474,9 +472,9 @@ export const RosterManager = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-700 border-purple-500/30">
-                      <SelectItem value="Face">Face</SelectItem>
-                      <SelectItem value="Heel">Heel</SelectItem>
-                      <SelectItem value="Tweener">Tweener</SelectItem>
+                      <SelectItem value="face">Face</SelectItem>
+                      <SelectItem value="heel">Heel</SelectItem>
+                      <SelectItem value="tweener">Tweener</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -488,8 +486,8 @@ export const RosterManager = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-700 border-purple-500/30">
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -528,8 +526,8 @@ export const RosterManager = () => {
                   <input
                     type="checkbox"
                     id="editBreak"
-                    checked={editingWrestler.break || false}
-                    onChange={(e) => setEditingWrestler({...editingWrestler, break: e.target.checked})}
+                    checked={editingWrestler.on_break || false}
+                    onChange={(e) => setEditingWrestler({...editingWrestler, on_break: e.target.checked})}
                     className="rounded border-purple-500/30"
                   />
                   <Label htmlFor="editBreak" className="text-purple-200">Break</Label>
@@ -623,9 +621,9 @@ export const RosterManager = () => {
           </SelectTrigger>
           <SelectContent className="bg-slate-700 border-purple-500/30">
             <SelectItem value="all">All Alignments</SelectItem>
-            <SelectItem value="Face">Face</SelectItem>
-            <SelectItem value="Heel">Heel</SelectItem>
-            <SelectItem value="Tweener">Tweener</SelectItem>
+            <SelectItem value="face">Face</SelectItem>
+            <SelectItem value="heel">Heel</SelectItem>
+            <SelectItem value="tweener">Tweener</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterDivision} onValueChange={setFilterDivision}>
@@ -691,7 +689,7 @@ export const RosterManager = () => {
                 : `No ${showFreeAgents ? "free agents" : "wrestlers"} match your current filters.`
               }
             </p>
-            {!showFreeAgents && wrestlers.length === 0 && (
+            {!showFreeAgents && activeRosterCount === 0 && (
               <Button onClick={() => setIsAddDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Your First Wrestler
