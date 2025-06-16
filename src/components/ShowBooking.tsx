@@ -36,7 +36,7 @@ export const ShowBooking = () => {
       venue: newShowData.venue || "",
       description: newShowData.description || "",
       matches: [],
-      is_template: (newShowData.frequency || "weekly") !== "one-time"
+      isTemplate: (newShowData.frequency || "weekly") !== "one-time"
     };
 
     const { error } = await saveShow(show);
@@ -54,12 +54,12 @@ export const ShowBooking = () => {
     
     toast({
       title: "Show Created",
-      description: `${show.name} has been added to your calendar${show.is_template ? " as a recurring show template" : ""}.`
+      description: `${show.name} has been added to your calendar${show.isTemplate ? " as a recurring show template" : ""}.`
     });
   };
 
   const openEditDialog = (show: Show) => {
-    if (!show.is_template) {
+    if (!show.isTemplate) {
       toast({
         title: "Cannot Edit Instance",
         description: "This is a specific show instance. Edit the base recurring show template instead.",
@@ -116,9 +116,9 @@ export const ShowBooking = () => {
       return;
     }
 
-    if (showToDelete.is_template) {
+    if (showToDelete.isTemplate) {
       // Also delete instances if this was a template
-      const instances = shows.filter(s => s.base_show_id === id);
+      const instances = shows.filter(s => s.baseShowId === id);
       for (const instance of instances) {
         await deleteRecord('shows', instance.id);
       }
@@ -145,7 +145,7 @@ export const ShowBooking = () => {
     }
   };
 
-  const displayShows = shows.filter(show => show.is_template);
+  const displayShows = shows.filter(show => show.isTemplate);
 
   if (loading) {
     return (
@@ -175,9 +175,9 @@ export const ShowBooking = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {displayShows.map((show) => {
-          const instancesCount = shows.filter(s => s.base_show_id === show.id).length;
+          const instancesCount = shows.filter(s => s.baseShowId === show.id).length;
           const totalMatches = shows
-            .filter(s => s.base_show_id === show.id)
+            .filter(s => s.baseShowId === show.id)
             .reduce((total, instance) => total + (instance.matches?.length || 0), 0);
           
           return (

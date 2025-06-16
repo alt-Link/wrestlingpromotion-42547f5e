@@ -13,6 +13,8 @@ interface UniverseData {
   settings: any;
 }
 
+type TableName = 'wrestlers' | 'championships' | 'shows' | 'rivalries' | 'storylines' | 'user_settings';
+
 export const useUniverseData = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -260,7 +262,7 @@ export const useUniverseData = () => {
     }
   };
 
-  const deleteRecord = async (table: string, id: string) => {
+  const deleteRecord = async (table: TableName, id: string) => {
     if (!user) return { error: 'User not authenticated' };
 
     try {
