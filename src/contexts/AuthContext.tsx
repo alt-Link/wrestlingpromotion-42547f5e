@@ -8,7 +8,8 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -70,13 +71,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signInWithGoogle = async () => {
+  const signUp = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
         options: {
-          redirectTo: window.location.origin
+          emailRedirectTo: window.location.origin
         }
+      });
+
+      if (error) {
+        toast({
+          title: "Sign-up Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Account Created",
+        description: "Please check your email to confirm your account.",
+      });
+
+      return { error: null };
+    } catch (error) {
+      console.error('Error signing up:', error);
+      const errorMessage = "An unexpected error occurred. Please try again.";
+      toast({
+        title: "Sign-up Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return { error: { message: errorMessage } };
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
 
       if (error) {
@@ -85,14 +121,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: error.message,
           variant: "destructive",
         });
+        return { error };
       }
+
+      return { error: null };
     } catch (error) {
-      console.error('Error signing in with Google:', error);
+      console.error('Error signing in:', error);
+      const errorMessage = "An unexpected error occurred. Please try again.";
       toast({
         title: "Sign-in Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
+      return { error: { message: errorMessage } };
     }
   };
 
@@ -120,7 +161,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     user,
     session,
     loading,
-    signInWithGoogle,
+    signUp,
+    signIn,
     signOut,
   };
 
