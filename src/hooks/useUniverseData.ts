@@ -286,54 +286,57 @@ export const useUniverseData = () => {
     loadData();
   }, [user]);
 
-  // Set up real-time subscriptions
+  // Set up real-time subscriptions with proper cleanup
   useEffect(() => {
     if (!user) return;
 
-    const channels = [
-      supabase
-        .channel('wrestlers-changes')
-        .on('postgres_changes', 
-          { event: '*', schema: 'public', table: 'wrestlers', filter: `user_id=eq.${user.id}` },
-          () => loadData()
-        )
-        .subscribe(),
-      
-      supabase
-        .channel('championships-changes')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'championships', filter: `user_id=eq.${user.id}` },
-          () => loadData()
-        )
-        .subscribe(),
-      
-      supabase
-        .channel('shows-changes')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'shows', filter: `user_id=eq.${user.id}` },
-          () => loadData()
-        )
-        .subscribe(),
-      
-      supabase
-        .channel('rivalries-changes')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'rivalries', filter: `user_id=eq.${user.id}` },
-          () => loadData()
-        )
-        .subscribe(),
-      
-      supabase
-        .channel('storylines-changes')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'storylines', filter: `user_id=eq.${user.id}` },
-          () => loadData()
-        )
-        .subscribe()
-    ];
+    console.log('Setting up realtime subscriptions for user:', user.id);
+
+    // Create a single channel for all table changes
+    const channel = supabase
+      .channel(`user-${user.id}-changes`)
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'wrestlers', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('Wrestlers change detected:', payload);
+          loadData();
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'championships', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('Championships change detected:', payload);
+          loadData();
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'shows', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('Shows change detected:', payload);
+          loadData();
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'rivalries', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('Rivalries change detected:', payload);
+          loadData();
+        }
+      )
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'storylines', filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          console.log('Storylines change detected:', payload);
+          loadData();
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status:', status);
+      });
 
     return () => {
-      channels.forEach(channel => supabase.removeChannel(channel));
+      console.log('Cleaning up realtime subscriptions');
+      supabase.removeChannel(channel);
     };
   }, [user]);
 
