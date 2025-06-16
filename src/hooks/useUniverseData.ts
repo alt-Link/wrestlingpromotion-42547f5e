@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +18,7 @@ type TableName = 'wrestlers' | 'championships' | 'shows' | 'rivalries' | 'storyl
 export const useUniverseData = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const channelRef = useRef<any>(null);
   const [data, setData] = useState<UniverseData>({
     wrestlers: [],
     championships: [],
@@ -286,15 +287,23 @@ export const useUniverseData = () => {
     loadData();
   }, [user]);
 
-  // Set up real-time subscriptions with proper cleanup
+  // Set up real-time subscriptions with proper cleanup and unique channel names
   useEffect(() => {
     if (!user) return;
 
-    console.log('Setting up realtime subscriptions for user:', user.id);
+    // Clean up any existing channel first
+    if (channelRef.current) {
+      console.log('Cleaning up existing channel');
+      supabase.removeChannel(channelRef.current);
+    }
+
+    // Create unique channel name using timestamp to prevent conflicts
+    const channelName = `user-${user.id}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log('Setting up realtime subscriptions with channel:', channelName);
 
     // Create a single channel for all table changes
     const channel = supabase
-      .channel(`user-${user.id}-changes`)
+      .channel(channelName)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'wrestlers', filter: `user_id=eq.${user.id}` },
         (payload) => {
@@ -334,9 +343,15 @@ export const useUniverseData = () => {
         console.log('Subscription status:', status);
       });
 
+    // Store the channel reference
+    channelRef.current = channel;
+
     return () => {
       console.log('Cleaning up realtime subscriptions');
-      supabase.removeChannel(channel);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [user]);
 
