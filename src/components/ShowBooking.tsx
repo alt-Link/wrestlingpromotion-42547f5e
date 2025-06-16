@@ -107,7 +107,6 @@ export const ShowBooking = () => {
       date: newShow.date || new Date().toISOString()
     };
 
-    // If it's a one-time show, set instance_date instead of date for template
     if (newShow.frequency === "one-time") {
       showData.instance_date = newShow.date || new Date().toISOString();
       showData.is_template = false;
@@ -127,7 +126,6 @@ export const ShowBooking = () => {
       return;
     }
     
-    // Reset form
     setNewShow({
       name: "",
       brand: "Raw",
@@ -169,7 +167,6 @@ export const ShowBooking = () => {
       matches: [...targetShow.matches, match]
     });
 
-    // Reset match form
     setNewMatch({
       type: "Singles Match",
       participants: [],
@@ -310,7 +307,6 @@ export const ShowBooking = () => {
               <DialogTitle className="text-white">Book New Show</DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column - Show Details */}
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="showName" className="text-orange-200">Show Name</Label>
@@ -391,7 +387,6 @@ export const ShowBooking = () => {
                 </div>
               </div>
 
-              {/* Right Column - Match Booking */}
               <div className="space-y-4">
                 <div className="bg-slate-700/50 p-4 rounded-lg">
                   <h3 className="text-orange-200 font-medium mb-3">Add Match</h3>
@@ -485,7 +480,6 @@ export const ShowBooking = () => {
                   </div>
                 </div>
 
-                {/* Show Matches List */}
                 <div>
                   <Label className="text-orange-200">Booked Matches ({newShow.matches.length})</Label>
                   <div className="max-h-64 overflow-y-auto space-y-2 mt-2">
@@ -543,7 +537,6 @@ export const ShowBooking = () => {
         </Dialog>
       </div>
 
-      {/* Edit Show Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="bg-slate-800 border-orange-500/30 max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -551,7 +544,6 @@ export const ShowBooking = () => {
           </DialogHeader>
           {editingShow && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Left Column - Show Details */}
               <div className="space-y-4">
                 <div>
                   <Label htmlFor="editShowName" className="text-orange-200">Show Name</Label>
@@ -616,7 +608,6 @@ export const ShowBooking = () => {
                 </div>
               </div>
 
-              {/* Right Column - Match Management */}
               <div className="space-y-4">
                 <div className="bg-slate-700/50 p-4 rounded-lg">
                   <h3 className="text-orange-200 font-medium mb-3">Add Match</h3>
@@ -681,7 +672,6 @@ export const ShowBooking = () => {
                   </div>
                 </div>
 
-                {/* Show Matches List */}
                 <div>
                   <Label className="text-orange-200">Booked Matches ({editingShow.matches.length})</Label>
                   <div className="max-h-64 overflow-y-auto space-y-2 mt-2">
@@ -739,7 +729,6 @@ export const ShowBooking = () => {
         </Dialog>
       </Dialog>
 
-      {/* Shows Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {shows.map((show: any) => (
           <Card key={show.id} className="bg-slate-800/50 border-orange-500/30 hover:border-orange-400/50 transition-colors">
