@@ -9,6 +9,7 @@ import { RivalryTracker } from "@/components/RivalryTracker";
 import { Storylines } from "@/components/Storylines";
 import { Settings } from "@/components/Settings";
 import { UniverseStats } from "@/components/UniverseStats";
+import { Factions } from "@/components/Factions";
 import { AppHeader } from "@/components/AppHeader";
 import { useUniverseData } from "@/hooks/useUniverseData";
 import { useAutoSave } from "@/hooks/useAutoSave";
@@ -62,10 +63,11 @@ const Index = () => {
       <div className="max-w-7xl mx-auto">
         <AppHeader onSave={handleSave} saving={saving} />
         
-        <Tabs defaultValue="stats" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-8 bg-slate-800/50 border-purple-500/30">
-            <TabsTrigger value="stats" className="data-[state=active]:bg-purple-600">Stats</TabsTrigger>
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-9 bg-slate-800/50 border-purple-500/30">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-purple-600">Dashboard</TabsTrigger>
             <TabsTrigger value="roster" className="data-[state=active]:bg-purple-600">Roster</TabsTrigger>
+            <TabsTrigger value="factions" className="data-[state=active]:bg-purple-600">Factions</TabsTrigger>
             <TabsTrigger value="championships" className="data-[state=active]:bg-purple-600">Championships</TabsTrigger>
             <TabsTrigger value="booking" className="data-[state=active]:bg-purple-600">Show Booking</TabsTrigger>
             <TabsTrigger value="calendar" className="data-[state=active]:bg-purple-600">Calendar</TabsTrigger>
@@ -74,12 +76,16 @@ const Index = () => {
             <TabsTrigger value="settings" className="data-[state=active]:bg-purple-600">Settings</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="stats">
+          <TabsContent value="dashboard">
             <UniverseStats />
           </TabsContent>
 
           <TabsContent value="roster">
             <RosterManager />
+          </TabsContent>
+
+          <TabsContent value="factions">
+            <Factions />
           </TabsContent>
 
           <TabsContent value="championships">
