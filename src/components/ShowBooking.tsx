@@ -7,35 +7,18 @@ import { AddShowDialog } from "./AddShowDialog";
 import { EditShowDialog } from "./EditShowDialog";
 import { ShowCard } from "./ShowCard";
 import { EmptyShowsState } from "./EmptyShowsState";
+import { useUniverseData } from "@/hooks/useUniverseData";
 
 export const ShowBooking = () => {
-  const [shows, setShows] = useState<Show[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingShow, setEditingShow] = useState<Show | null>(null);
   const { toast } = useToast();
+  const { data, loading, saveShow, deleteRecord } = useUniverseData();
 
-  useEffect(() => {
-    const savedShows = localStorage.getItem("shows");
-    if (savedShows) {
-      const parsed = JSON.parse(savedShows);
-      const showsWithDates = parsed.map((show: any) => ({
-        ...show,
-        date: show.date ? new Date(show.date) : undefined,
-        instanceDate: show.instanceDate ? new Date(show.instanceDate) : undefined,
-        matches: show.matches || [],
-        isTemplate: show.isTemplate !== undefined ? show.isTemplate : (show.frequency !== 'one-time')
-      }));
-      setShows(showsWithDates);
-    }
-  }, []);
+  const shows = data.shows || [];
 
-  const saveShows = (updatedShows: Show[]) => {
-    setShows(updatedShows);
-    localStorage.setItem("shows", JSON.stringify(updatedShows));
-  };
-
-  const addShow = (newShowData: Partial<Show>) => {
+  const addShow = async (newShowData: Partial<Show>) => {
     if (!newShowData.name?.trim()) {
       toast({
         title: "Error",
@@ -45,8 +28,7 @@ export const ShowBooking = () => {
       return;
     }
 
-    const show: Show = {
-      id: Date.now().toString(),
+    const show = {
       name: newShowData.name!,
       brand: newShowData.brand || "Raw",
       date: newShowData.date,
@@ -54,22 +36,30 @@ export const ShowBooking = () => {
       venue: newShowData.venue || "",
       description: newShowData.description || "",
       matches: [],
-      isTemplate: (newShowData.frequency || "weekly") !== "one-time"
+      is_template: (newShowData.frequency || "weekly") !== "one-time"
     };
 
-    const updatedShows = [...shows, show];
-    saveShows(updatedShows);
+    const { error } = await saveShow(show);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create show. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setIsAddDialogOpen(false);
     
     toast({
       title: "Show Created",
-      description: `${show.name} has been added to your calendar${show.isTemplate ? " as a recurring show template" : ""}.`
+      description: `${show.name} has been added to your calendar${show.is_template ? " as a recurring show template" : ""}.`
     });
   };
 
   const openEditDialog = (show: Show) => {
-    if (!show.isTemplate) {
+    if (!show.is_template) {
       toast({
         title: "Cannot Edit Instance",
         description: "This is a specific show instance. Edit the base recurring show template instead.",
@@ -81,7 +71,7 @@ export const ShowBooking = () => {
     setIsEditDialogOpen(true);
   };
 
-  const saveEditedShow = () => {
+  const saveEditedShow = async () => {
     if (!editingShow?.name?.trim()) {
       toast({
         title: "Error",
@@ -91,10 +81,16 @@ export const ShowBooking = () => {
       return;
     }
 
-    const updatedShows = shows.map(show => 
-      show.id === editingShow.id ? editingShow : show
-    );
-    saveShows(updatedShows);
+    const { error } = await saveShow(editingShow);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update show. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setIsEditDialogOpen(false);
     setEditingShow(null);
@@ -105,20 +101,33 @@ export const ShowBooking = () => {
     });
   };
 
-  const deleteShow = (id: string) => {
+  const deleteShow = async (id: string) => {
     const showToDelete = shows.find(s => s.id === id);
     if (!showToDelete) return;
 
-    if (showToDelete.isTemplate) {
-      const updatedShows = shows.filter(s => s.id !== id && s.baseShowId !== id);
-      saveShows(updatedShows);
+    const { error } = await deleteRecord('shows', id);
+    
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete show. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (showToDelete.is_template) {
+      // Also delete instances if this was a template
+      const instances = shows.filter(s => s.base_show_id === id);
+      for (const instance of instances) {
+        await deleteRecord('shows', instance.id);
+      }
+      
       toast({
         title: "Show Template Deleted",
         description: "Show template and all its instances have been removed."
       });
     } else {
-      const updatedShows = shows.filter(s => s.id !== id);
-      saveShows(updatedShows);
       toast({
         title: "Show Instance Deleted",
         description: "Show instance has been removed."
@@ -136,7 +145,15 @@ export const ShowBooking = () => {
     }
   };
 
-  const displayShows = shows.filter(show => show.isTemplate);
+  const displayShows = shows.filter(show => show.is_template);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -158,9 +175,9 @@ export const ShowBooking = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {displayShows.map((show) => {
-          const instancesCount = shows.filter(s => s.baseShowId === show.id).length;
+          const instancesCount = shows.filter(s => s.base_show_id === show.id).length;
           const totalMatches = shows
-            .filter(s => s.baseShowId === show.id)
+            .filter(s => s.base_show_id === show.id)
             .reduce((total, instance) => total + (instance.matches?.length || 0), 0);
           
           return (

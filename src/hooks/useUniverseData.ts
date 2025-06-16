@@ -92,21 +92,191 @@ export const useUniverseData = () => {
     }
   };
 
-  // Auto-save function
-  const saveData = async (type: keyof UniverseData, newData: any[]) => {
-    if (!user) return;
+  // Enhanced save function with proper user_id handling
+  const saveWrestler = async (wrestler: any) => {
+    if (!user) return { error: 'User not authenticated' };
 
     try {
-      // For now, we'll handle saves through individual component updates
-      // This hook provides the data loading and will be extended for saves
-      console.log(`Saving ${type} data:`, newData);
+      const wrestlerData = {
+        ...wrestler,
+        user_id: user.id // Ensure user_id is always set
+      };
+
+      if (wrestler.id) {
+        // Update existing
+        const { error } = await supabase
+          .from('wrestlers')
+          .update(wrestlerData)
+          .eq('id', wrestler.id)
+          .eq('user_id', user.id); // Ensure user can only update their own data
+        
+        if (error) throw error;
+      } else {
+        // Create new
+        const { error } = await supabase
+          .from('wrestlers')
+          .insert(wrestlerData);
+        
+        if (error) throw error;
+      }
+
+      await loadData(); // Refresh data
+      return { error: null };
     } catch (error) {
-      console.error(`Error saving ${type}:`, error);
-      toast({
-        title: "Save Error",
-        description: `Failed to save ${type}. Please try again.`,
-        variant: "destructive",
-      });
+      console.error('Error saving wrestler:', error);
+      return { error };
+    }
+  };
+
+  const saveChampionship = async (championship: any) => {
+    if (!user) return { error: 'User not authenticated' };
+
+    try {
+      const championshipData = {
+        ...championship,
+        user_id: user.id
+      };
+
+      if (championship.id) {
+        const { error } = await supabase
+          .from('championships')
+          .update(championshipData)
+          .eq('id', championship.id)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('championships')
+          .insert(championshipData);
+        
+        if (error) throw error;
+      }
+
+      await loadData();
+      return { error: null };
+    } catch (error) {
+      console.error('Error saving championship:', error);
+      return { error };
+    }
+  };
+
+  const saveShow = async (show: any) => {
+    if (!user) return { error: 'User not authenticated' };
+
+    try {
+      const showData = {
+        ...show,
+        user_id: user.id
+      };
+
+      if (show.id) {
+        const { error } = await supabase
+          .from('shows')
+          .update(showData)
+          .eq('id', show.id)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('shows')
+          .insert(showData);
+        
+        if (error) throw error;
+      }
+
+      await loadData();
+      return { error: null };
+    } catch (error) {
+      console.error('Error saving show:', error);
+      return { error };
+    }
+  };
+
+  const saveRivalry = async (rivalry: any) => {
+    if (!user) return { error: 'User not authenticated' };
+
+    try {
+      const rivalryData = {
+        ...rivalry,
+        user_id: user.id
+      };
+
+      if (rivalry.id) {
+        const { error } = await supabase
+          .from('rivalries')
+          .update(rivalryData)
+          .eq('id', rivalry.id)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('rivalries')
+          .insert(rivalryData);
+        
+        if (error) throw error;
+      }
+
+      await loadData();
+      return { error: null };
+    } catch (error) {
+      console.error('Error saving rivalry:', error);
+      return { error };
+    }
+  };
+
+  const saveStoryline = async (storyline: any) => {
+    if (!user) return { error: 'User not authenticated' };
+
+    try {
+      const storylineData = {
+        ...storyline,
+        user_id: user.id
+      };
+
+      if (storyline.id) {
+        const { error } = await supabase
+          .from('storylines')
+          .update(storylineData)
+          .eq('id', storyline.id)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('storylines')
+          .insert(storylineData);
+        
+        if (error) throw error;
+      }
+
+      await loadData();
+      return { error: null };
+    } catch (error) {
+      console.error('Error saving storyline:', error);
+      return { error };
+    }
+  };
+
+  const deleteRecord = async (table: string, id: string) => {
+    if (!user) return { error: 'User not authenticated' };
+
+    try {
+      const { error } = await supabase
+        .from(table)
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id); // Ensure user can only delete their own data
+      
+      if (error) throw error;
+      
+      await loadData();
+      return { error: null };
+    } catch (error) {
+      console.error(`Error deleting ${table} record:`, error);
+      return { error };
     }
   };
 
@@ -169,6 +339,11 @@ export const useUniverseData = () => {
     data,
     loading,
     refetch: loadData,
-    saveData
+    saveWrestler,
+    saveChampionship,
+    saveShow,
+    saveRivalry,
+    saveStoryline,
+    deleteRecord
   };
 };
