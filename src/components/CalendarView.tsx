@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -195,14 +196,15 @@ export const CalendarView = () => {
 
     const showsForDate: Show[] = [];
 
-    // First, check for specific instances on this date
+    // First, check for specific instances on this date that have matches
     const instances = shows.filter(show => {
       if (show.is_template) return false;
       if (!show.instance_date) return false;
       
       try {
         const instanceDate = new Date(show.instance_date);
-        return instanceDate.toDateString() === cellDate.toDateString();
+        const hasMatches = show.matches && show.matches.length > 0;
+        return instanceDate.toDateString() === cellDate.toDateString() && hasMatches;
       } catch (error) {
         console.error('Error parsing instance date:', error);
         return false;
@@ -216,7 +218,8 @@ export const CalendarView = () => {
       });
     });
 
-    // Then check for recurring show templates that should appear on this date
+    // For recurring show templates, only show them if they're scheduled for this date AND it's the first occurrence
+    // This prevents templates from showing every week without matches
     const templates = shows.filter(show => show.is_template && show.date);
     
     templates.forEach(template => {
@@ -243,28 +246,31 @@ export const CalendarView = () => {
 
       let shouldShow = false;
 
+      // Only show the template on its exact start date for initial booking
+      // After that, only instances with matches should appear
       switch (template.frequency) {
         case 'one-time':
           shouldShow = cellDate.getTime() === showStartDate.getTime();
           break;
         
         case 'weekly':
-          shouldShow = cellDate.getDay() === showStartDate.getDay();
+          // Only show if it's the exact start date (for initial setup)
+          shouldShow = cellDate.getTime() === showStartDate.getTime();
           break;
 
         case 'monthly':
-          shouldShow = cellDate.getDate() === showStartDate.getDate();
+          // Only show if it's the exact start date (for initial setup)
+          shouldShow = cellDate.getTime() === showStartDate.getTime();
           break;
 
         case 'quarterly':
-          if (cellDate.getDate() === showStartDate.getDate()) {
-            const monthDiff = (cellDate.getFullYear() - showStartDate.getFullYear()) * 12 + (cellDate.getMonth() - showStartDate.getMonth());
-            shouldShow = monthDiff >= 0 && monthDiff % 3 === 0;
-          }
+          // Only show if it's the exact start date (for initial setup)
+          shouldShow = cellDate.getTime() === showStartDate.getTime();
           break;
 
         case 'yearly':
-          shouldShow = cellDate.getDate() === showStartDate.getDate() && cellDate.getMonth() === showStartDate.getMonth();
+          // Only show if it's the exact start date (for initial setup)
+          shouldShow = cellDate.getTime() === showStartDate.getTime();
           break;
 
         default:
@@ -648,26 +654,6 @@ export const CalendarView = () => {
           </div>
           
           <div className="mt-6 flex space-x-4 flex-wrap">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-red-600 rounded"></div>
-              <span className="text-purple-200 text-sm">Raw</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-blue-600 rounded"></div>
-              <span className="text-purple-200 text-sm">SmackDown</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-yellow-600 rounded"></div>
-              <span className="text-purple-200 text-sm">NXT</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-orange-600 rounded"></div>
-              <span className="text-purple-200 text-sm">Pay-Per-View</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-600 rounded"></div>
-              <span className="text-purple-200 text-sm">Special Event</span>
-            </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-purple-600 rounded"></div>
               <span className="text-purple-200 text-sm">Today</span>
