@@ -8,7 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { LogIn, UserPlus } from 'lucide-react';
+import { LogIn, UserPlus, Apple } from 'lucide-react';
 
 const signInSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -24,12 +24,18 @@ const signUpSchema = z.object({
   path: ["confirmPassword"],
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address'),
+});
+
 type SignInForm = z.infer<typeof signInSchema>;
 type SignUpForm = z.infer<typeof signUpSchema>;
+type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>;
 
 export const Auth = () => {
-  const { signIn, signUp, loading } = useAuth();
+  const { signIn, signUp, resetPassword, signInWithApple, loading } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const signInForm = useForm<SignInForm>({
@@ -49,6 +55,13 @@ export const Auth = () => {
     },
   });
 
+  const forgotPasswordForm = useForm<ForgotPasswordForm>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: '',
+    },
+  });
+
   const onSignIn = async (values: SignInForm) => {
     setSubmitting(true);
     await signIn(values.email, values.password);
@@ -64,10 +77,32 @@ export const Auth = () => {
     setSubmitting(false);
   };
 
+  const onForgotPassword = async (values: ForgotPasswordForm) => {
+    setSubmitting(true);
+    await resetPassword(values.email);
+    setSubmitting(false);
+  };
+
+  const handleSignInWithApple = async () => {
+    setSubmitting(true);
+    await signInWithApple();
+    setSubmitting(false);
+  };
+
   const toggleMode = () => {
     setIsSignUp(!isSignUp);
+    setIsForgotPassword(false);
     signInForm.reset();
     signUpForm.reset();
+    forgotPasswordForm.reset();
+  };
+
+  const toggleForgotPassword = () => {
+    setIsForgotPassword(!isForgotPassword);
+    setIsSignUp(false);
+    signInForm.reset();
+    signUpForm.reset();
+    forgotPasswordForm.reset();
   };
 
   return (
@@ -78,11 +113,47 @@ export const Auth = () => {
             Wrestling Universe Manager
           </CardTitle>
           <p className="text-purple-200">
-            {isSignUp ? 'Create your account' : 'Sign in to your account'}
+            {isForgotPassword 
+              ? 'Reset your password' 
+              : isSignUp 
+                ? 'Create your account' 
+                : 'Sign in to your account'
+            }
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isSignUp ? (
+          {isForgotPassword ? (
+            <Form {...forgotPasswordForm}>
+              <form onSubmit={forgotPasswordForm.handleSubmit(onForgotPassword)} className="space-y-4">
+                <FormField
+                  control={forgotPasswordForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-purple-200">Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Enter your email"
+                          type="email"
+                          className="bg-slate-700 border-purple-500/30 text-white placeholder:text-slate-400"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  disabled={loading || submitting}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+                  size="lg"
+                >
+                  {submitting ? 'Sending...' : 'Send Reset Link'}
+                </Button>
+              </form>
+            </Form>
+          ) : isSignUp ? (
             <Form {...signUpForm}>
               <form onSubmit={signUpForm.handleSubmit(onSignUp)} className="space-y-4">
                 <FormField
@@ -189,6 +260,16 @@ export const Auth = () => {
                     </FormItem>
                   )}
                 />
+                <div className="text-right">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={toggleForgotPassword}
+                    className="text-purple-300 hover:text-purple-200 hover:bg-purple-500/20 text-sm p-0 h-auto"
+                  >
+                    Forgot password?
+                  </Button>
+                </div>
                 <Button
                   type="submit"
                   disabled={loading || submitting}
@@ -201,15 +282,50 @@ export const Auth = () => {
               </form>
             </Form>
           )}
+
+          {!isForgotPassword && (
+            <>
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-purple-500/30" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-slate-800 px-2 text-purple-300">Or continue with</span>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSignInWithApple}
+                disabled={loading || submitting}
+                className="w-full bg-slate-700 border-purple-500/30 text-white hover:bg-slate-600"
+                size="lg"
+              >
+                <Apple className="w-5 h-5 mr-2" />
+                Sign in with Apple
+              </Button>
+            </>
+          )}
           
           <div className="text-center">
-            <Button
-              variant="ghost"
-              onClick={toggleMode}
-              className="text-purple-300 hover:text-purple-200 hover:bg-purple-500/20"
-            >
-              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-            </Button>
+            {!isForgotPassword ? (
+              <Button
+                variant="ghost"
+                onClick={toggleMode}
+                className="text-purple-300 hover:text-purple-200 hover:bg-purple-500/20"
+              >
+                {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                onClick={toggleForgotPassword}
+                className="text-purple-300 hover:text-purple-200 hover:bg-purple-500/20"
+              >
+                Back to sign in
+              </Button>
+            )}
           </div>
           
           <div className="text-center text-sm text-purple-300">

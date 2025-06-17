@@ -11,6 +11,8 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  signInWithApple: () => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -157,6 +159,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        toast({
+          title: "Reset Password Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      toast({
+        title: "Reset Link Sent",
+        description: "Please check your email for the password reset link.",
+      });
+
+      return { error: null };
+    } catch (error) {
+      console.error('Error resetting password:', error);
+      const errorMessage = "An unexpected error occurred. Please try again.";
+      toast({
+        title: "Reset Password Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return { error: { message: errorMessage } };
+    }
+  };
+
+  const signInWithApple = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'apple',
+        options: {
+          redirectTo: window.location.origin
+        }
+      });
+
+      if (error) {
+        toast({
+          title: "Apple Sign-in Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error };
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('Error signing in with Apple:', error);
+      const errorMessage = "An unexpected error occurred. Please try again.";
+      toast({
+        title: "Apple Sign-in Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      return { error: { message: errorMessage } };
+    }
+  };
+
   const value = {
     user,
     session,
@@ -164,6 +230,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signUp,
     signIn,
     signOut,
+    resetPassword,
+    signInWithApple,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
