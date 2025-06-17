@@ -32,6 +32,9 @@ export const MatchForm = ({
   onAddMatch, 
   toggleWrestlerInMatch 
 }: MatchFormProps) => {
+  // Filter out any empty match types
+  const validMatchTypes = MATCH_TYPES.filter(type => type && type.trim() !== '');
+  
   return (
     <div className="bg-slate-700/50 p-4 rounded-lg">
       <h3 className="text-orange-200 font-medium mb-3">Add Match</h3>
@@ -42,7 +45,7 @@ export const MatchForm = ({
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="bg-slate-700 border-orange-500/30 max-h-48">
-            {MATCH_TYPES.map(type => (
+            {validMatchTypes.map(type => (
               <SelectItem key={type} value={type}>{type}</SelectItem>
             ))}
           </SelectContent>
