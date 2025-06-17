@@ -55,7 +55,7 @@ export const MatchForm = ({
               <p className="text-slate-400 text-sm">No wrestlers available. Add wrestlers to your roster first.</p>
             ) : (
               <div className="space-y-1">
-                {wrestlers.map((wrestler: any) => (
+                {wrestlers.filter(wrestler => wrestler.name && wrestler.name.trim() !== '').map((wrestler: any) => (
                   <div key={wrestler.id} className="flex items-center space-x-2">
                     <Checkbox
                       id={`match-wrestler-${wrestler.id}`}
@@ -91,11 +91,13 @@ export const MatchForm = ({
           </SelectTrigger>
           <SelectContent className="bg-slate-700 border-orange-500/30">
             <SelectItem value="none">No Championship</SelectItem>
-            {championships.filter((c: any) => !c.retired).map((championship: any) => (
-              <SelectItem key={championship.id} value={championship.name}>
-                {championship.name}
-              </SelectItem>
-            ))}
+            {championships
+              .filter((c: any) => !c.retired && c.name && c.name.trim() !== '')
+              .map((championship: any) => (
+                <SelectItem key={championship.id} value={championship.name}>
+                  {championship.name}
+                </SelectItem>
+              ))}
           </SelectContent>
         </Select>
 

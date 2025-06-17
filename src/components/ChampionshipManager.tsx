@@ -335,11 +335,13 @@ export const ChampionshipManager = () => {
                   <SelectValue placeholder="Select a wrestler" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-700 border-purple-500/30">
-                  {wrestlers.map((wrestler) => (
-                    <SelectItem key={wrestler.id} value={wrestler.name}>
-                      {wrestler.name} ({wrestler.brand})
-                    </SelectItem>
-                  ))}
+                  {wrestlers
+                    .filter(wrestler => wrestler.name && wrestler.name.trim() !== '')
+                    .map((wrestler) => (
+                      <SelectItem key={wrestler.id} value={wrestler.name}>
+                        {wrestler.name} ({wrestler.brand})
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
