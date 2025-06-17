@@ -150,6 +150,11 @@ export type Database = {
           custom_events: Json | null
           description: string | null
           end_date: string | null
+          faction_betrayal_coming: boolean | null
+          faction_betrayal_description: string | null
+          faction_new_member_coming: boolean | null
+          faction_new_member_description: string | null
+          faction_new_member_wrestler: string | null
           id: string
           notes: string | null
           priority: string | null
@@ -166,6 +171,11 @@ export type Database = {
           custom_events?: Json | null
           description?: string | null
           end_date?: string | null
+          faction_betrayal_coming?: boolean | null
+          faction_betrayal_description?: string | null
+          faction_new_member_coming?: boolean | null
+          faction_new_member_description?: string | null
+          faction_new_member_wrestler?: string | null
           id?: string
           notes?: string | null
           priority?: string | null
@@ -182,6 +192,11 @@ export type Database = {
           custom_events?: Json | null
           description?: string | null
           end_date?: string | null
+          faction_betrayal_coming?: boolean | null
+          faction_betrayal_description?: string | null
+          faction_new_member_coming?: boolean | null
+          faction_new_member_description?: string | null
+          faction_new_member_wrestler?: string | null
           id?: string
           notes?: string | null
           priority?: string | null

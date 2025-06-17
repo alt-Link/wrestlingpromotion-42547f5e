@@ -57,7 +57,9 @@ export const Settings = () => {
             // Import wrestlers
             if (importedData.wrestlers && Array.isArray(importedData.wrestlers)) {
               for (const wrestler of importedData.wrestlers) {
-                const { error } = await saveWrestler(wrestler);
+                // Remove id to create new records
+                const { id, ...wrestlerData } = wrestler;
+                const { error } = await saveWrestler(wrestlerData);
                 if (error) {
                   console.error('Error importing wrestler:', wrestler, error);
                   errorCount++;
@@ -70,7 +72,8 @@ export const Settings = () => {
             // Import championships
             if (importedData.championships && Array.isArray(importedData.championships)) {
               for (const championship of importedData.championships) {
-                const { error } = await saveChampionship(championship);
+                const { id, ...championshipData } = championship;
+                const { error } = await saveChampionship(championshipData);
                 if (error) {
                   console.error('Error importing championship:', championship, error);
                   errorCount++;
@@ -83,7 +86,8 @@ export const Settings = () => {
             // Import shows
             if (importedData.shows && Array.isArray(importedData.shows)) {
               for (const show of importedData.shows) {
-                const { error } = await saveShow(show);
+                const { id, ...showData } = show;
+                const { error } = await saveShow(showData);
                 if (error) {
                   console.error('Error importing show:', show, error);
                   errorCount++;
@@ -96,7 +100,8 @@ export const Settings = () => {
             // Import rivalries
             if (importedData.rivalries && Array.isArray(importedData.rivalries)) {
               for (const rivalry of importedData.rivalries) {
-                const { error } = await saveRivalry(rivalry);
+                const { id, ...rivalryData } = rivalry;
+                const { error } = await saveRivalry(rivalryData);
                 if (error) {
                   console.error('Error importing rivalry:', rivalry, error);
                   errorCount++;
@@ -109,7 +114,8 @@ export const Settings = () => {
             // Import storylines
             if (importedData.storylines && Array.isArray(importedData.storylines)) {
               for (const storyline of importedData.storylines) {
-                const { error } = await saveStoryline(storyline);
+                const { id, ...storylineData } = storyline;
+                const { error } = await saveStoryline(storylineData);
                 if (error) {
                   console.error('Error importing storyline:', storyline, error);
                   errorCount++;

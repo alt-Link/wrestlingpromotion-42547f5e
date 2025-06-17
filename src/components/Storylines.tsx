@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,9 @@ interface Storyline {
   storyline_type: 'individual' | 'faction' | 'tag_team';
   faction_betrayal_coming?: boolean;
   faction_new_member_coming?: boolean;
+  faction_betrayal_description?: string;
+  faction_new_member_description?: string;
+  faction_new_member_wrestler?: string;
   history: HistoryEvent[];
 }
 
@@ -72,11 +74,26 @@ export const Storylines = () => {
     storyline_type: "individual",
     faction_betrayal_coming: false,
     faction_new_member_coming: false,
+    faction_betrayal_description: "",
+    faction_new_member_description: "",
+    faction_new_member_wrestler: "",
     history: []
   });
 
   const storylines = data.storylines || [];
   const wrestlers = data.wrestlers || [];
+
+  // Get faction wrestlers based on selected wrestlers
+  const getFactionWrestlers = (selectedWrestlers: string[]) => {
+    if (!selectedWrestlers.length) return [];
+    
+    // Find the faction of the first selected wrestler
+    const firstWrestler = wrestlers.find(w => selectedWrestlers.includes(w.name));
+    if (!firstWrestler?.faction) return [];
+    
+    // Return all wrestlers in the same faction
+    return wrestlers.filter(w => w.faction === firstWrestler.faction);
+  };
 
   const generateTimeline = (storyline: Partial<Storyline>): TimelineEvent[] => {
     const timeline: TimelineEvent[] = [];
@@ -170,6 +187,9 @@ export const Storylines = () => {
       storyline_type: newStoryline.storyline_type || "individual",
       faction_betrayal_coming: newStoryline.faction_betrayal_coming || false,
       faction_new_member_coming: newStoryline.faction_new_member_coming || false,
+      faction_betrayal_description: newStoryline.faction_betrayal_description || "",
+      faction_new_member_description: newStoryline.faction_new_member_description || "",
+      faction_new_member_wrestler: newStoryline.faction_new_member_wrestler || "",
       history: [historyEvent]
     };
 
@@ -195,6 +215,9 @@ export const Storylines = () => {
       storyline_type: "individual",
       faction_betrayal_coming: false,
       faction_new_member_coming: false,
+      faction_betrayal_description: "",
+      faction_new_member_description: "",
+      faction_new_member_wrestler: "",
       history: []
     });
     setIsAddDialogOpen(false);
@@ -431,23 +454,95 @@ export const Storylines = () => {
               </div>
 
               {newStoryline.storyline_type === 'faction' && (
-                <div className="space-y-3 bg-slate-700/50 p-4 rounded-lg">
+                <div className="space-y-4 bg-slate-700/50 p-4 rounded-lg">
                   <h4 className="text-indigo-200 font-medium">Faction Options</h4>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="betrayalComing"
-                      checked={newStoryline.faction_betrayal_coming || false}
-                      onCheckedChange={(checked) => setNewStoryline({...newStoryline, faction_betrayal_coming: !!checked})}
-                    />
-                    <Label htmlFor="betrayalComing" className="text-white">Betrayal Coming?</Label>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="betrayalComing"
+                        checked={newStoryline.faction_betrayal_coming || false}
+                        onCheckedChange={(checked) => setNewStoryline({...newStoryline, faction_betrayal_coming: !!checked})}
+                      />
+                      <Label htmlFor="betrayalComing" className="text-white">Betrayal Coming?</Label>
+                    </div>
+                    
+                    {newStoryline.faction_betrayal_coming && (
+                      <div className="space-y-2 ml-6">
+                        <div>
+                          <Label className="text-indigo-200 text-sm">Who betrays?</Label>
+                          <Select 
+                            value={newStoryline.faction_new_member_wrestler || ""} 
+                            onValueChange={(value) => setNewStoryline({...newStoryline, faction_new_member_wrestler: value})}
+                          >
+                            <SelectTrigger className="bg-slate-600 border-indigo-500/30 text-white">
+                              <SelectValue placeholder="Select wrestler" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-700 border-indigo-500/30">
+                              {getFactionWrestlers(newStoryline.wrestlers || []).map((wrestler: any) => (
+                                <SelectItem key={wrestler.id} value={wrestler.name}>
+                                  {wrestler.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-indigo-200 text-sm">Betrayal Description (Optional)</Label>
+                          <Textarea
+                            value={newStoryline.faction_betrayal_description || ""}
+                            onChange={(e) => setNewStoryline({...newStoryline, faction_betrayal_description: e.target.value})}
+                            className="bg-slate-600 border-indigo-500/30 text-white"
+                            placeholder="Describe the betrayal setup..."
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="newMemberComing"
-                      checked={newStoryline.faction_new_member_coming || false}
-                      onCheckedChange={(checked) => setNewStoryline({...newStoryline, faction_new_member_coming: !!checked})}
-                    />
-                    <Label htmlFor="newMemberComing" className="text-white">New Member Coming?</Label>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="newMemberComing"
+                        checked={newStoryline.faction_new_member_coming || false}
+                        onCheckedChange={(checked) => setNewStoryline({...newStoryline, faction_new_member_coming: !!checked})}
+                      />
+                      <Label htmlFor="newMemberComing" className="text-white">New Member Coming?</Label>
+                    </div>
+                    
+                    {newStoryline.faction_new_member_coming && (
+                      <div className="space-y-2 ml-6">
+                        <div>
+                          <Label className="text-indigo-200 text-sm">Who joins?</Label>
+                          <Select 
+                            value={newStoryline.faction_new_member_wrestler || ""} 
+                            onValueChange={(value) => setNewStoryline({...newStoryline, faction_new_member_wrestler: value})}
+                          >
+                            <SelectTrigger className="bg-slate-600 border-indigo-500/30 text-white">
+                              <SelectValue placeholder="Select wrestler" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-700 border-indigo-500/30">
+                              {wrestlers.filter((w: any) => !w.faction || w.faction === "").map((wrestler: any) => (
+                                <SelectItem key={wrestler.id} value={wrestler.name}>
+                                  {wrestler.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-indigo-200 text-sm">New Member Description (Optional)</Label>
+                          <Textarea
+                            value={newStoryline.faction_new_member_description || ""}
+                            onChange={(e) => setNewStoryline({...newStoryline, faction_new_member_description: e.target.value})}
+                            className="bg-slate-600 border-indigo-500/30 text-white"
+                            placeholder="Describe how they join..."
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -609,23 +704,95 @@ export const Storylines = () => {
                   </div>
 
                   {editingStoryline.storyline_type === 'faction' && (
-                    <div className="space-y-3 bg-slate-700/50 p-4 rounded-lg">
+                    <div className="space-y-4 bg-slate-700/50 p-4 rounded-lg">
                       <h4 className="text-indigo-200 font-medium">Faction Options</h4>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="editBetrayalComing"
-                          checked={editingStoryline.faction_betrayal_coming || false}
-                          onCheckedChange={(checked) => setEditingStoryline({...editingStoryline, faction_betrayal_coming: !!checked})}
-                        />
-                        <Label htmlFor="editBetrayalComing" className="text-white">Betrayal Coming?</Label>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="editBetrayalComing"
+                            checked={editingStoryline.faction_betrayal_coming || false}
+                            onCheckedChange={(checked) => setEditingStoryline({...editingStoryline, faction_betrayal_coming: !!checked})}
+                          />
+                          <Label htmlFor="editBetrayalComing" className="text-white">Betrayal Coming?</Label>
+                        </div>
+                        
+                        {editingStoryline.faction_betrayal_coming && (
+                          <div className="space-y-2 ml-6">
+                            <div>
+                              <Label className="text-indigo-200 text-sm">Who betrays?</Label>
+                              <Select 
+                                value={editingStoryline.faction_new_member_wrestler || ""} 
+                                onValueChange={(value) => setEditingStoryline({...editingStoryline, faction_new_member_wrestler: value})}
+                              >
+                                <SelectTrigger className="bg-slate-600 border-indigo-500/30 text-white">
+                                  <SelectValue placeholder="Select wrestler" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-700 border-indigo-500/30">
+                                  {getFactionWrestlers(editingStoryline.wrestlers || []).map((wrestler: any) => (
+                                    <SelectItem key={wrestler.id} value={wrestler.name}>
+                                      {wrestler.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-indigo-200 text-sm">Betrayal Description</Label>
+                              <Textarea
+                                value={editingStoryline.faction_betrayal_description || ""}
+                                onChange={(e) => setEditingStoryline({...editingStoryline, faction_betrayal_description: e.target.value})}
+                                className="bg-slate-600 border-indigo-500/30 text-white"
+                                placeholder="Describe the betrayal setup..."
+                                rows={2}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox
-                          id="editNewMemberComing"
-                          checked={editingStoryline.faction_new_member_coming || false}
-                          onCheckedChange={(checked) => setEditingStoryline({...editingStoryline, faction_new_member_coming: !!checked})}
-                        />
-                        <Label htmlFor="editNewMemberComing" className="text-white">New Member Coming?</Label>
+
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="editNewMemberComing"
+                            checked={editingStoryline.faction_new_member_coming || false}
+                            onCheckedChange={(checked) => setEditingStoryline({...editingStoryline, faction_new_member_coming: !!checked})}
+                          />
+                          <Label htmlFor="editNewMemberComing" className="text-white">New Member Coming?</Label>
+                        </div>
+                        
+                        {editingStoryline.faction_new_member_coming && (
+                          <div className="space-y-2 ml-6">
+                            <div>
+                              <Label className="text-indigo-200 text-sm">Who joins?</Label>
+                              <Select 
+                                value={editingStoryline.faction_new_member_wrestler || ""} 
+                                onValueChange={(value) => setEditingStoryline({...editingStoryline, faction_new_member_wrestler: value})}
+                              >
+                                <SelectTrigger className="bg-slate-600 border-indigo-500/30 text-white">
+                                  <SelectValue placeholder="Select wrestler" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-slate-700 border-indigo-500/30">
+                                  {wrestlers.filter((w: any) => !w.faction || w.faction === "").map((wrestler: any) => (
+                                    <SelectItem key={wrestler.id} value={wrestler.name}>
+                                      {wrestler.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div>
+                              <Label className="text-indigo-200 text-sm">New Member Description</Label>
+                              <Textarea
+                                value={editingStoryline.faction_new_member_description || ""}
+                                onChange={(e) => setEditingStoryline({...editingStoryline, faction_new_member_description: e.target.value})}
+                                className="bg-slate-600 border-indigo-500/30 text-white"
+                                placeholder="Describe how they join..."
+                                rows={2}
+                              />
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
