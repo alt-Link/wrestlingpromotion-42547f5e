@@ -32,6 +32,10 @@ export const ChampionshipManager = () => {
     date: new Date().toISOString().split('T')[0]
   });
 
+  // Filter out wrestlers and championships with empty names
+  const validWrestlers = wrestlers.filter(wrestler => wrestler.name && wrestler.name.trim() !== '');
+  const validChampionships = championships.filter(championship => championship.name && championship.name.trim() !== '');
+
   const addChampionship = async () => {
     if (!newChampionship.name.trim()) {
       toast({
@@ -238,7 +242,7 @@ export const ChampionshipManager = () => {
 
       {/* Championships Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {championships.filter(c => !c.retired).map((championship) => (
+        {validChampionships.filter(c => !c.retired).map((championship) => (
           <Card key={championship.id} className="bg-slate-800/50 border-yellow-500/30 hover:border-yellow-400/50 transition-colors">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
@@ -335,13 +339,11 @@ export const ChampionshipManager = () => {
                   <SelectValue placeholder="Select a wrestler" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-700 border-purple-500/30">
-                  {wrestlers
-                    .filter(wrestler => wrestler.name && wrestler.name.trim() !== '')
-                    .map((wrestler) => (
-                      <SelectItem key={wrestler.id} value={wrestler.name}>
-                        {wrestler.name} ({wrestler.brand})
-                      </SelectItem>
-                    ))}
+                  {validWrestlers.map((wrestler) => (
+                    <SelectItem key={wrestler.id} value={wrestler.name}>
+                      {wrestler.name} ({wrestler.brand})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -372,7 +374,7 @@ export const ChampionshipManager = () => {
         </DialogContent>
       </Dialog>
 
-      {championships.filter(c => !c.retired).length === 0 && (
+      {validChampionships.filter(c => !c.retired).length === 0 && (
         <Card className="bg-slate-800/50 border-yellow-500/30">
           <CardContent className="text-center py-12">
             <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
