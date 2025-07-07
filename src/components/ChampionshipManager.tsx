@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,17 +9,31 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Trophy, Plus, Crown, Calendar, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useUniverseData } from "@/hooks/useUniverseData";
+
+interface Championship {
+  id: string;
+  name: string;
+  brand: string;
+  currentChampion?: string;
+  reignStart?: string;
+  reignLength?: number;
+  history: {
+    champion: string;
+    start: string;
+    end?: string;
+    days: number;
+    event: string;
+  }[];
+  retired: boolean;
+}
 
 export const ChampionshipManager = () => {
-  const { data, loading, saveChampionship, deleteRecord } = useUniverseData();
+  const [championships, setChampionships] = useState<Championship[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
-  const [selectedChampionship, setSelectedChampionship] = useState<any>(null);
+  const [selectedChampionship, setSelectedChampionship] = useState<Championship | null>(null);
+  const [wrestlers, setWrestlers] = useState<any[]>([]);
   const { toast } = useToast();
-
-  const championships = data.championships || [];
-  const wrestlers = data.wrestlers || [];
 
   const [newChampionship, setNewChampionship] = useState({
     name: "",
@@ -32,11 +46,73 @@ export const ChampionshipManager = () => {
     date: new Date().toISOString().split('T')[0]
   });
 
-  // Filter out wrestlers and championships with empty names
-  const validWrestlers = wrestlers.filter(wrestler => wrestler.name && wrestler.name.trim() !== '');
-  const validChampionships = championships.filter(championship => championship.name && championship.name.trim() !== '');
+  useEffect(() => {
+    const savedChampionships = localStorage.getItem("championships");
+    const savedWrestlers = localStorage.getItem("wrestlers");
+    
+    if (savedChampionships) {
+      setChampionships(JSON.parse(savedChampionships));
+    } else {
+      // Initialize with default championships
+      const defaultChampionships: Championship[] = [
+        {
+          id: "1",
+          name: "WWE Championship",
+          brand: "Raw",
+          history: [],
+          retired: false
+        },
+        {
+          id: "2",
+          name: "Universal Championship",
+          brand: "SmackDown",
+          history: [],
+          retired: false
+        },
+        {
+          id: "3",
+          name: "Intercontinental Championship",
+          brand: "Raw",
+          history: [],
+          retired: false
+        },
+        {
+          id: "4",
+          name: "United States Championship",
+          brand: "SmackDown",
+          history: [],
+          retired: false
+        },
+        {
+          id: "5",
+          name: "Raw Women's Championship",
+          brand: "Raw",
+          history: [],
+          retired: false
+        },
+        {
+          id: "6",
+          name: "SmackDown Women's Championship",
+          brand: "SmackDown",
+          history: [],
+          retired: false
+        }
+      ];
+      setChampionships(defaultChampionships);
+      localStorage.setItem("championships", JSON.stringify(defaultChampionships));
+    }
 
-  const addChampionship = async () => {
+    if (savedWrestlers) {
+      setWrestlers(JSON.parse(savedWrestlers));
+    }
+  }, []);
+
+  const saveChampionships = (updatedChampionships: Championship[]) => {
+    setChampionships(updatedChampionships);
+    localStorage.setItem("championships", JSON.stringify(updatedChampionships));
+  };
+
+  const addChampionship = () => {
     if (!newChampionship.name.trim()) {
       toast({
         title: "Error",
@@ -46,23 +122,16 @@ export const ChampionshipManager = () => {
       return;
     }
 
-    const championship = {
+    const championship: Championship = {
+      id: Date.now().toString(),
       name: newChampionship.name,
       brand: newChampionship.brand,
       history: [],
       retired: false
     };
 
-    const { error } = await saveChampionship(championship);
-    
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create championship. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
+    const updatedChampionships = [...championships, championship];
+    saveChampionships(updatedChampionships);
     
     setNewChampionship({ name: "", brand: "Raw" });
     setIsAddDialogOpen(false);
@@ -73,7 +142,7 @@ export const ChampionshipManager = () => {
     });
   };
 
-  const assignChampion = async () => {
+  const assignChampion = () => {
     if (!selectedChampionship || !newChampion.wrestler || !newChampion.event) {
       toast({
         title: "Error",
@@ -83,42 +152,54 @@ export const ChampionshipManager = () => {
       return;
     }
 
-    // End current reign if there is one
-    let updatedHistory = [...(selectedChampionship.history || [])];
-    if (selectedChampionship.current_champion) {
-      const currentReign = updatedHistory[updatedHistory.length - 1];
-      if (currentReign && !currentReign.end) {
-        const days = Math.floor((new Date(newChampion.date).getTime() - new Date(currentReign.start).getTime()) / (1000 * 60 * 60 * 24));
-        currentReign.end = newChampion.date;
-        currentReign.days = days;
-      }
-    }
+    const updatedChampionships = championships.map(championship => {
+      if (championship.id === selectedChampionship.id) {
+        // End current reign if there is one
+        let updatedHistory = [...championship.history];
+        if (championship.currentChampion) {
+          const currentReign = updatedHistory[updatedHistory.length - 1];
+          if (currentReign && !currentReign.end) {
+            const days = Math.floor((new Date(newChampion.date).getTime() - new Date(currentReign.start).getTime()) / (1000 * 60 * 60 * 24));
+            currentReign.end = newChampion.date;
+            currentReign.days = days;
+          }
+        }
 
-    // Add new reign
-    updatedHistory.push({
-      champion: newChampion.wrestler,
-      start: newChampion.date,
-      days: 0,
-      event: newChampion.event
+        // Add new reign
+        updatedHistory.push({
+          champion: newChampion.wrestler,
+          start: newChampion.date,
+          days: 0,
+          event: newChampion.event
+        });
+
+        return {
+          ...championship,
+          currentChampion: newChampion.wrestler,
+          reignStart: newChampion.date,
+          reignLength: 0,
+          history: updatedHistory
+        };
+      }
+      return championship;
     });
 
-    const updatedChampionship = {
-      ...selectedChampionship,
-      current_champion: newChampion.wrestler,
-      reign_start: newChampion.date,
-      history: updatedHistory
-    };
-
-    const { error } = await saveChampionship(updatedChampionship);
+    saveChampionships(updatedChampionships);
     
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to assign champion. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
+    // Update wrestler titles
+    const updatedWrestlers = wrestlers.map(wrestler => {
+      if (wrestler.name === newChampion.wrestler) {
+        const titles = [...(wrestler.titles || [])];
+        if (!titles.includes(selectedChampionship.name)) {
+          titles.push(selectedChampionship.name);
+        }
+        return { ...wrestler, titles };
+      }
+      return wrestler;
+    });
+    
+    localStorage.setItem("wrestlers", JSON.stringify(updatedWrestlers));
+    setWrestlers(updatedWrestlers);
     
     setNewChampion({ wrestler: "", event: "", date: new Date().toISOString().split('T')[0] });
     setIsAssignDialogOpen(false);
@@ -130,35 +211,32 @@ export const ChampionshipManager = () => {
     });
   };
 
-  const vacateTitle = async (championship: any) => {
-    // End current reign
-    let updatedHistory = [...(championship.history || [])];
-    if (championship.current_champion) {
-      const currentReign = updatedHistory[updatedHistory.length - 1];
-      if (currentReign && !currentReign.end) {
-        const days = Math.floor((new Date().getTime() - new Date(currentReign.start).getTime()) / (1000 * 60 * 60 * 24));
-        currentReign.end = new Date().toISOString().split('T')[0];
-        currentReign.days = days;
+  const vacateTitle = (championship: Championship) => {
+    const updatedChampionships = championships.map(c => {
+      if (c.id === championship.id) {
+        // End current reign
+        let updatedHistory = [...c.history];
+        if (c.currentChampion) {
+          const currentReign = updatedHistory[updatedHistory.length - 1];
+          if (currentReign && !currentReign.end) {
+            const days = Math.floor((new Date().getTime() - new Date(currentReign.start).getTime()) / (1000 * 60 * 60 * 24));
+            currentReign.end = new Date().toISOString().split('T')[0];
+            currentReign.days = days;
+          }
+        }
+
+        return {
+          ...c,
+          currentChampion: undefined,
+          reignStart: undefined,
+          reignLength: undefined,
+          history: updatedHistory
+        };
       }
-    }
+      return c;
+    });
 
-    const updatedChampionship = {
-      ...championship,
-      current_champion: null,
-      reign_start: null,
-      history: updatedHistory
-    };
-
-    const { error } = await saveChampionship(updatedChampionship);
-    
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to vacate title. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
+    saveChampionships(updatedChampionships);
     
     toast({
       title: "Title Vacated",
@@ -180,14 +258,6 @@ export const ChampionshipManager = () => {
     const now = new Date();
     return Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -242,7 +312,7 @@ export const ChampionshipManager = () => {
 
       {/* Championships Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {validChampionships.filter(c => !c.retired).map((championship) => (
+        {championships.filter(c => !c.retired).map((championship) => (
           <Card key={championship.id} className="bg-slate-800/50 border-yellow-500/30 hover:border-yellow-400/50 transition-colors">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
@@ -256,7 +326,7 @@ export const ChampionshipManager = () => {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {championship.current_champion ? (
+              {championship.currentChampion ? (
                 <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 p-4 rounded-lg border border-yellow-500/30">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
@@ -265,11 +335,11 @@ export const ChampionshipManager = () => {
                     </div>
                     <div className="flex items-center space-x-1 text-purple-200 text-sm">
                       <Calendar className="w-4 h-4" />
-                      <span>{championship.reign_start && calculateReignLength(championship.reign_start)} days</span>
+                      <span>{championship.reignStart && calculateReignLength(championship.reignStart)} days</span>
                     </div>
                   </div>
-                  <p className="text-white font-bold text-lg">{championship.current_champion}</p>
-                  <p className="text-yellow-200 text-sm">Since {championship.reign_start}</p>
+                  <p className="text-white font-bold text-lg">{championship.currentChampion}</p>
+                  <p className="text-yellow-200 text-sm">Since {championship.reignStart}</p>
                 </div>
               ) : (
                 <div className="bg-slate-700/50 p-4 rounded-lg border border-slate-600">
@@ -286,9 +356,9 @@ export const ChampionshipManager = () => {
                     setIsAssignDialogOpen(true);
                   }}
                 >
-                  {championship.current_champion ? "New Champion" : "Assign Champion"}
+                  {championship.currentChampion ? "New Champion" : "Assign Champion"}
                 </Button>
-                {championship.current_champion && (
+                {championship.currentChampion && (
                   <Button 
                     size="sm" 
                     variant="outline" 
@@ -300,11 +370,11 @@ export const ChampionshipManager = () => {
                 )}
               </div>
 
-              {championship.history && championship.history.length > 0 && (
+              {championship.history.length > 0 && (
                 <div>
                   <h4 className="text-purple-200 font-medium mb-2">Recent History</h4>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {championship.history.slice(-3).reverse().map((reign: any, index: number) => (
+                    {championship.history.slice(-3).reverse().map((reign, index) => (
                       <div key={index} className="bg-slate-700/30 p-2 rounded text-sm">
                         <div className="flex justify-between items-center">
                           <span className="text-white font-medium">{reign.champion}</span>
@@ -328,7 +398,7 @@ export const ChampionshipManager = () => {
         <DialogContent className="bg-slate-800 border-purple-500/30">
           <DialogHeader>
             <DialogTitle className="text-white">
-              {selectedChampionship?.current_champion ? "New Champion" : "Assign Champion"} - {selectedChampionship?.name}
+              {selectedChampionship?.currentChampion ? "New Champion" : "Assign Champion"} - {selectedChampionship?.name}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
@@ -339,7 +409,7 @@ export const ChampionshipManager = () => {
                   <SelectValue placeholder="Select a wrestler" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-700 border-purple-500/30">
-                  {validWrestlers.map((wrestler) => (
+                  {wrestlers.map((wrestler) => (
                     <SelectItem key={wrestler.id} value={wrestler.name}>
                       {wrestler.name} ({wrestler.brand})
                     </SelectItem>
@@ -374,7 +444,7 @@ export const ChampionshipManager = () => {
         </DialogContent>
       </Dialog>
 
-      {validChampionships.filter(c => !c.retired).length === 0 && (
+      {championships.filter(c => !c.retired).length === 0 && (
         <Card className="bg-slate-800/50 border-yellow-500/30">
           <CardContent className="text-center py-12">
             <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-4" />

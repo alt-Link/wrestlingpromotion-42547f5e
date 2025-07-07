@@ -1,182 +1,184 @@
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Edit, Trash2, Trophy, Users, Clock, MapPin } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useUniverseData } from "@/hooks/useUniverseData";
-import { AddShowDialog } from "./showBooking/AddShowDialog";
-import { EditShowDialog } from "./showBooking/EditShowDialog";
-import { getBrandColor, getFrequencyIcon } from "./showBooking/ShowBookingUtils";
-import type { Show } from "@/types/showBooking";
+import { Show } from "@/types/show";
+import { ShowBookingHeader } from "./ShowBookingHeader";
+import { AddShowDialog } from "./AddShowDialog";
+import { EditShowDialog } from "./EditShowDialog";
+import { ShowCard } from "./ShowCard";
+import { EmptyShowsState } from "./EmptyShowsState";
 
 export const ShowBooking = () => {
-  const { data, loading, saveShow, deleteRecord } = useUniverseData();
-  const { toast } = useToast();
-  
+  const [shows, setShows] = useState<Show[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingShow, setEditingShow] = useState<Show | null>(null);
+  const { toast } = useToast();
 
-  const shows = data.shows || [];
-  const wrestlers = data.wrestlers || [];
-  const championships = data.championships || [];
+  useEffect(() => {
+    const savedShows = localStorage.getItem("shows");
+    if (savedShows) {
+      const parsed = JSON.parse(savedShows);
+      const showsWithDates = parsed.map((show: any) => ({
+        ...show,
+        date: show.date ? new Date(show.date) : undefined,
+        instanceDate: show.instanceDate ? new Date(show.instanceDate) : undefined,
+        matches: show.matches || [],
+        isTemplate: show.isTemplate !== undefined ? show.isTemplate : (show.frequency !== 'one-time')
+      }));
+      setShows(showsWithDates);
+    }
+  }, []);
 
-  const startEditShow = (show: any) => {
-    setEditingShow({
-      ...show,
-      matches: show.matches || []
-    });
-    setIsEditDialogOpen(true);
+  const saveShows = (updatedShows: Show[]) => {
+    setShows(updatedShows);
+    localStorage.setItem("shows", JSON.stringify(updatedShows));
   };
 
-  const handleDeleteShow = async (id: string) => {
-    const { error } = await deleteRecord('shows', id);
-    
-    if (error) {
+  const addShow = (newShowData: Partial<Show>) => {
+    if (!newShowData.name?.trim()) {
       toast({
         title: "Error",
-        description: "Failed to delete show. Please try again.",
+        description: "Show name is required",
         variant: "destructive"
       });
       return;
     }
 
+    const show: Show = {
+      id: Date.now().toString(),
+      name: newShowData.name!,
+      brand: newShowData.brand || "Raw",
+      date: newShowData.date,
+      frequency: newShowData.frequency || "weekly",
+      venue: newShowData.venue || "",
+      description: newShowData.description || "",
+      matches: [],
+      isTemplate: (newShowData.frequency || "weekly") !== "one-time"
+    };
+
+    const updatedShows = [...shows, show];
+    saveShows(updatedShows);
+    
+    setIsAddDialogOpen(false);
+    
     toast({
-      title: "Show Deleted",
-      description: "Show has been removed from your schedule."
+      title: "Show Created",
+      description: `${show.name} has been added to your calendar${show.isTemplate ? " as a recurring show template" : ""}.`
     });
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-      </div>
+  const openEditDialog = (show: Show) => {
+    if (!show.isTemplate) {
+      toast({
+        title: "Cannot Edit Instance",
+        description: "This is a specific show instance. Edit the base recurring show template instead.",
+        variant: "destructive"
+      });
+      return;
+    }
+    setEditingShow(show);
+    setIsEditDialogOpen(true);
+  };
+
+  const saveEditedShow = () => {
+    if (!editingShow?.name?.trim()) {
+      toast({
+        title: "Error",
+        description: "Show name is required",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const updatedShows = shows.map(show => 
+      show.id === editingShow.id ? editingShow : show
     );
-  }
+    saveShows(updatedShows);
+    
+    setIsEditDialogOpen(false);
+    setEditingShow(null);
+    
+    toast({
+      title: "Show Updated",
+      description: `${editingShow.name} template has been updated.`
+    });
+  };
+
+  const deleteShow = (id: string) => {
+    const showToDelete = shows.find(s => s.id === id);
+    if (!showToDelete) return;
+
+    if (showToDelete.isTemplate) {
+      const updatedShows = shows.filter(s => s.id !== id && s.baseShowId !== id);
+      saveShows(updatedShows);
+      toast({
+        title: "Show Template Deleted",
+        description: "Show template and all its instances have been removed."
+      });
+    } else {
+      const updatedShows = shows.filter(s => s.id !== id);
+      saveShows(updatedShows);
+      toast({
+        title: "Show Instance Deleted",
+        description: "Show instance has been removed."
+      });
+    }
+  };
+
+  const getBrandColor = (brand: string) => {
+    switch (brand) {
+      case "Raw": return "bg-red-500";
+      case "SmackDown": return "bg-blue-500";
+      case "NXT": return "bg-yellow-500";
+      case "Legends": return "bg-purple-500";
+      default: return "bg-gray-500";
+    }
+  };
+
+  const displayShows = shows.filter(show => show.isTemplate);
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-2">
-          <Calendar className="w-6 h-6 text-orange-400" />
-          <h2 className="text-2xl font-bold text-white">Show Booking</h2>
-        </div>
-        <AddShowDialog 
-          onSaveShow={saveShow} 
-          wrestlers={wrestlers} 
-          championships={championships} 
-        />
-      </div>
+      <ShowBookingHeader onAddClick={() => setIsAddDialogOpen(true)} />
+
+      <AddShowDialog
+        isOpen={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onAddShow={addShow}
+      />
 
       <EditShowDialog
         isOpen={isEditDialogOpen}
-        onClose={() => setIsEditDialogOpen(false)}
-        show={editingShow}
-        onSaveShow={saveShow}
-        wrestlers={wrestlers}
-        championships={championships}
+        onOpenChange={setIsEditDialogOpen}
+        editingShow={editingShow}
+        onEditShow={setEditingShow}
+        onSave={saveEditedShow}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {shows.map((show: any) => (
-          <Card key={show.id} className="bg-slate-800/50 border-orange-500/30 hover:border-orange-400/50 transition-colors">
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-white text-lg">{show.name}</CardTitle>
-                <div className="flex space-x-2">
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-orange-400 hover:bg-orange-500/20"
-                    onClick={() => startEditShow(show)}
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="ghost" 
-                    className="text-red-400 hover:bg-red-500/20"
-                    onClick={() => handleDeleteShow(show.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                <Badge className={getBrandColor(show.brand)}>
-                  {show.brand}
-                </Badge>
-                <Badge className="bg-slate-600 text-white">
-                  {getFrequencyIcon(show.frequency)} {show.frequency}
-                </Badge>
-              </div>
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center text-orange-200">
-                  <MapPin className="w-4 h-4 mr-1" />
-                  <span>{show.venue}</span>
-                </div>
-                {(show.date || show.instance_date) && (
-                  <div className="flex items-center text-orange-200">
-                    <Clock className="w-4 h-4 mr-1" />
-                    <span>{new Date(show.date || show.instance_date).toLocaleDateString()}</span>
-                  </div>
-                )}
-                <div className="flex items-center text-orange-200">
-                  <Users className="w-4 h-4 mr-1" />
-                  <span>{show.matches?.length || 0} matches</span>
-                </div>
-              </div>
-              
-              {show.description && (
-                <p className="text-sm text-slate-400">{show.description}</p>
-              )}
-
-              {show.matches && show.matches.length > 0 && (
-                <div className="bg-slate-700/50 p-3 rounded">
-                  <h4 className="text-sm font-medium text-orange-200 mb-2">Matches</h4>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {show.matches.slice(0, 3).map((match: any, index: number) => (
-                      <div key={match.id || index} className="text-xs text-slate-300">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">{match.type}</span>
-                          {match.championship && (
-                            <Badge className="bg-yellow-600 text-white text-xs">
-                              <Trophy className="w-2 h-2 mr-1" />
-                              Title
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="text-slate-400">
-                          {match.participants?.join(" vs ") || "TBD"}
-                        </div>
-                      </div>
-                    ))}
-                    {show.matches.length > 3 && (
-                      <p className="text-xs text-slate-400">+{show.matches.length - 3} more matches</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+        {displayShows.map((show) => {
+          const instancesCount = shows.filter(s => s.baseShowId === show.id).length;
+          const totalMatches = shows
+            .filter(s => s.baseShowId === show.id)
+            .reduce((total, instance) => total + (instance.matches?.length || 0), 0);
+          
+          return (
+            <ShowCard
+              key={show.id}
+              show={show}
+              instancesCount={instancesCount}
+              totalMatches={totalMatches}
+              onEdit={openEditDialog}
+              onDelete={deleteShow}
+              getBrandColor={getBrandColor}
+            />
+          );
+        })}
       </div>
 
-      {shows.length === 0 && (
-        <Card className="bg-slate-800/50 border-orange-500/30">
-          <CardContent className="text-center py-12">
-            <Calendar className="w-12 h-12 text-orange-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No Shows Scheduled</h3>
-            <p className="text-orange-200 mb-4">
-              Start booking your first show to schedule matches and events.
-            </p>
-          </CardContent>
-        </Card>
+      {displayShows.length === 0 && (
+        <EmptyShowsState onAddClick={() => setIsAddDialogOpen(true)} />
       )}
     </div>
   );

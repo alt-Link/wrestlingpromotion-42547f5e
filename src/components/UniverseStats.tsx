@@ -1,123 +1,134 @@
 
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, Users, Calendar, Zap, Star, Shield, Clock } from "lucide-react";
-import { useUniverseData } from "@/hooks/useUniverseData";
+
+interface UniverseData {
+  totalWrestlers: number;
+  activeChampionships: number;
+  upcomingShows: number;
+  activeRivalries: number;
+  totalMatches: number;
+  upcomingMatches: any[];
+  currentChampions: any[];
+}
 
 export const UniverseStats = () => {
-  const { data, loading } = useUniverseData();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-      </div>
-    );
-  }
-
-  const wrestlers = data.wrestlers || [];
-  const championships = data.championships || [];
-  const shows = data.shows || [];
-  const rivalries = data.rivalries || [];
-  const storylines = data.storylines || [];
-
-  // Process shows to get upcoming matches
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  const upcomingMatches: any[] = [];
-  const upcomingShowsCount = new Set();
-
-  // Process all shows to find upcoming matches
-  shows.forEach((show: any) => {
-    let showDate: Date | null = null;
-    let isUpcoming = false;
-
-    // Handle specific instances
-    if (!show.is_template && show.instance_date) {
-      showDate = new Date(show.instance_date);
-      showDate.setHours(0, 0, 0, 0);
-      isUpcoming = showDate >= now;
-    }
-    // Handle templates that recur
-    else if (show.is_template && show.date) {
-      const templateDate = new Date(show.date);
-      templateDate.setHours(0, 0, 0, 0);
-      
-      // Find next occurrence based on frequency
-      const daysDiff = Math.floor((now.getTime() - templateDate.getTime()) / (1000 * 60 * 60 * 24));
-      
-      switch (show.frequency) {
-        case 'weekly':
-          if (daysDiff >= 0) {
-            const weeksAhead = Math.ceil(daysDiff / 7);
-            showDate = new Date(templateDate);
-            showDate.setDate(templateDate.getDate() + (weeksAhead * 7));
-            isUpcoming = true;
-          }
-          break;
-        case 'monthly':
-          if (daysDiff >= 0) {
-            showDate = new Date(templateDate);
-            showDate.setMonth(now.getMonth() + (now.getDate() >= templateDate.getDate() ? 1 : 0));
-            isUpcoming = true;
-          }
-          break;
-        case 'one-time':
-          showDate = templateDate;
-          isUpcoming = showDate >= now;
-          break;
-      }
-    }
-
-    if (isUpcoming && showDate) {
-      // Count upcoming shows
-      upcomingShowsCount.add(`${show.name}-${showDate.toDateString()}`);
-      
-      // Add matches from this show
-      if (show.matches && show.matches.length > 0) {
-        show.matches.forEach((match: any) => {
-          upcomingMatches.push({
-            ...match,
-            showName: show.name,
-            showDate: showDate!.toISOString(),
-            showBrand: show.brand
-          });
-        });
-      }
-    }
+  const [stats, setStats] = useState<UniverseData>({
+    totalWrestlers: 0,
+    activeChampionships: 0,
+    upcomingShows: 0,
+    activeRivalries: 0,
+    totalMatches: 0,
+    upcomingMatches: [],
+    currentChampions: []
   });
 
-  // Sort upcoming matches by date and limit to 10
-  upcomingMatches.sort((a, b) => new Date(a.showDate).getTime() - new Date(b.showDate).getTime());
-  const limitedUpcomingMatches = upcomingMatches.slice(0, 10);
+  useEffect(() => {
+    // Load stats from localStorage
+    const wrestlers = JSON.parse(localStorage.getItem("wrestlers") || "[]");
+    const championships = JSON.parse(localStorage.getItem("championships") || "[]");
+    const shows = JSON.parse(localStorage.getItem("shows") || "[]");
+    const rivalries = JSON.parse(localStorage.getItem("rivalries") || "[]");
 
-  // Get current champions with reign data
-  const currentChampions = championships
-    .filter((c: any) => c.current_champion && !c.retired)
-    .map((c: any) => {
-      const reignLength = c.reign_start ? 
-        Math.floor((new Date().getTime() - new Date(c.reign_start).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-      
-      return {
-        title: c.name,
-        champion: c.current_champion,
-        reignStart: c.reign_start,
-        reignLength,
-        brand: c.brand
-      };
-    })
-    .sort((a, b) => b.reignLength - a.reignLength); // Sort by longest reign first
+    // Process shows to get upcoming matches
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
 
-  const stats = {
-    totalWrestlers: wrestlers.length,
-    activeChampionships: championships.filter((c: any) => c.current_champion && !c.retired).length,
-    upcomingShows: upcomingShowsCount.size,
-    activeRivalries: rivalries.filter((r: any) => r.status === "active").length,
-    activeStorylines: storylines.filter((s: any) => s.status === "active").length,
-    totalMatches: shows.reduce((acc: number, show: any) => acc + (show.matches?.length || 0), 0),
-    upcomingMatches: limitedUpcomingMatches,
-    currentChampions
-  };
+    const upcomingMatches: any[] = [];
+    const upcomingShowsCount = new Set();
+
+    // Process all shows to find upcoming matches
+    shows.forEach((show: any) => {
+      let showDate: Date | null = null;
+      let isUpcoming = false;
+
+      // Handle specific instances
+      if (!show.isTemplate && show.instanceDate) {
+        showDate = new Date(show.instanceDate);
+        showDate.setHours(0, 0, 0, 0);
+        isUpcoming = showDate >= now;
+      }
+      // Handle templates that recur
+      else if (show.isTemplate && show.date) {
+        const templateDate = new Date(show.date);
+        templateDate.setHours(0, 0, 0, 0);
+        
+        // Find next occurrence based on frequency
+        const daysDiff = Math.floor((now.getTime() - templateDate.getTime()) / (1000 * 60 * 60 * 24));
+        
+        switch (show.frequency) {
+          case 'weekly':
+            if (daysDiff >= 0) {
+              const weeksAhead = Math.ceil(daysDiff / 7);
+              showDate = new Date(templateDate);
+              showDate.setDate(templateDate.getDate() + (weeksAhead * 7));
+              isUpcoming = true;
+            }
+            break;
+          case 'monthly':
+            if (daysDiff >= 0) {
+              showDate = new Date(templateDate);
+              showDate.setMonth(now.getMonth() + (now.getDate() >= templateDate.getDate() ? 1 : 0));
+              isUpcoming = true;
+            }
+            break;
+          case 'one-time':
+            showDate = templateDate;
+            isUpcoming = showDate >= now;
+            break;
+        }
+      }
+
+      if (isUpcoming && showDate) {
+        // Count upcoming shows
+        upcomingShowsCount.add(`${show.name}-${showDate.toDateString()}`);
+        
+        // Add matches from this show
+        if (show.matches && show.matches.length > 0) {
+          show.matches.forEach((match: any) => {
+            upcomingMatches.push({
+              ...match,
+              showName: show.name,
+              showDate: showDate!.toISOString(),
+              showBrand: show.brand
+            });
+          });
+        }
+      }
+    });
+
+    // Sort upcoming matches by date and limit to 10
+    upcomingMatches.sort((a, b) => new Date(a.showDate).getTime() - new Date(b.showDate).getTime());
+    const limitedUpcomingMatches = upcomingMatches.slice(0, 10);
+
+    // Get current champions with reign data
+    const currentChampions = championships
+      .filter((c: any) => c.currentChampion && !c.retired)
+      .map((c: any) => {
+        const reignLength = c.reignStart ? 
+          Math.floor((new Date().getTime() - new Date(c.reignStart).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+        
+        return {
+          title: c.name,
+          champion: c.currentChampion,
+          reignStart: c.reignStart,
+          reignLength,
+          brand: c.brand
+        };
+      })
+      .sort((a, b) => b.reignLength - a.reignLength); // Sort by longest reign first
+
+    setStats({
+      totalWrestlers: wrestlers.length,
+      activeChampionships: championships.filter((c: any) => c.currentChampion && !c.retired).length,
+      upcomingShows: upcomingShowsCount.size,
+      activeRivalries: rivalries.filter((r: any) => r.status === "active").length,
+      totalMatches: shows.reduce((acc: number, show: any) => acc + (show.matches?.length || 0), 0),
+      upcomingMatches: limitedUpcomingMatches,
+      currentChampions
+    });
+  }, []);
 
   const statCards = [
     {
@@ -145,16 +156,10 @@ export const UniverseStats = () => {
       color: "from-red-500 to-pink-500"
     },
     {
-      title: "Active Storylines",
-      value: stats.activeStorylines,
-      icon: Shield,
-      color: "from-purple-500 to-violet-500"
-    },
-    {
       title: "Total Matches Booked",
       value: stats.totalMatches,
       icon: Star,
-      color: "from-indigo-500 to-purple-500"
+      color: "from-purple-500 to-violet-500"
     }
   ];
 
@@ -180,7 +185,7 @@ export const UniverseStats = () => {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
         {statCards.map((stat, index) => (
           <Card key={index} className="bg-slate-800/50 border-purple-500/30 hover:border-purple-400/50 transition-colors">
             <CardContent className="p-6">
@@ -213,8 +218,8 @@ export const UniverseStats = () => {
                   <div key={index} className={`p-3 rounded-lg border ${getBrandColor(match.showBrand)}`}>
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex-1">
-                        <h4 className="font-semibold text-white">{match.participants?.join(" vs ") || "TBD"}</h4>
-                        <p className="text-sm text-purple-200">{match.type || "Standard Match"}</p>
+                        <h4 className="font-semibold text-white">{match.participants.join(" vs ")}</h4>
+                        <p className="text-sm text-purple-200">{match.type}</p>
                         {match.championship && (
                           <p className="text-sm text-yellow-400">Championship: {match.championship}</p>
                         )}

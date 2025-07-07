@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Trophy, Clock, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useUniverseData } from "@/hooks/useUniverseData";
 
 interface Show {
   id: string;
@@ -19,9 +17,9 @@ interface Show {
   venue: string;
   description: string;
   matches?: Match[];
-  is_template?: boolean;
-  base_show_id?: string;
-  instance_date?: Date;
+  isTemplate?: boolean;
+  baseShowId?: string;
+  instanceDate?: Date;
 }
 
 interface Match {
@@ -35,7 +33,8 @@ interface Match {
 
 export const CalendarView = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const { data, loading, saveShow } = useUniverseData();
+  const [shows, setShows] = useState<Show[]>([]);
+  const [wrestlers, setWrestlers] = useState<any[]>([]);
   const [selectedShow, setSelectedShow] = useState<Show | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isMatchDialogOpen, setIsMatchDialogOpen] = useState(false);
@@ -45,19 +44,61 @@ export const CalendarView = () => {
     type: "Singles",
     description: ""
   });
+  const [refreshKey, setRefreshKey] = useState(0); // Force re-render when matches change
   const { toast } = useToast();
 
-  const shows = data.shows || [];
-  const wrestlers = data.wrestlers || [];
-  const championships = data.championships || [];
+  // Function to refresh shows data
+  const refreshShows = useCallback(() => {
+    const savedShows = localStorage.getItem("shows");
+    if (savedShows) {
+      const parsed = JSON.parse(savedShows);
+      const showsWithDates = parsed.map((show: any) => ({
+        ...show,
+        date: show.date ? new Date(show.date) : undefined,
+        instanceDate: show.instanceDate ? new Date(show.instanceDate) : undefined,
+        matches: show.matches || [],
+        isTemplate: show.isTemplate !== undefined ? show.isTemplate : (show.frequency !== 'one-time')
+      }));
+      setShows(showsWithDates);
+      setRefreshKey(prev => prev + 1); // Trigger re-render
+    }
+  }, []);
 
-  const findOrCreateShowInstance = async (baseShow: Show, targetDate: Date): Promise<Show> => {
+  useEffect(() => {
+    refreshShows();
+
+    const savedWrestlers = localStorage.getItem("wrestlers");
+    if (savedWrestlers) {
+      setWrestlers(JSON.parse(savedWrestlers));
+    }
+  }, [refreshShows]);
+
+  // Listen for storage changes to update calendar in real-time
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === "shows") {
+        refreshShows();
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
+  }, [refreshShows]);
+
+  const saveShows = (updatedShows: Show[]) => {
+    setShows(updatedShows);
+    localStorage.setItem("shows", JSON.stringify(updatedShows));
+    // Dispatch storage event for real-time updates
+    window.dispatchEvent(new StorageEvent("storage", { key: "shows" }));
+  };
+
+  const findOrCreateShowInstance = (baseShow: Show, targetDate: Date): Show => {
     const dateKey = targetDate.toDateString();
     
     // Look for existing instance for this date
     const existingInstance = shows.find(show => 
-      show.base_show_id === baseShow.id && 
-      show.instance_date && new Date(show.instance_date).toDateString() === dateKey
+      show.baseShowId === baseShow.id && 
+      show.instanceDate?.toDateString() === dateKey
     );
     
     if (existingInstance) {
@@ -65,7 +106,8 @@ export const CalendarView = () => {
     }
     
     // Create new instance
-    const newInstance: any = {
+    const newInstance: Show = {
+      id: `${baseShow.id}-${Date.now()}`,
       name: baseShow.name,
       brand: baseShow.brand,
       date: baseShow.date,
@@ -73,21 +115,18 @@ export const CalendarView = () => {
       venue: baseShow.venue,
       description: baseShow.description,
       matches: [],
-      is_template: false,
-      base_show_id: baseShow.id,
-      instance_date: targetDate
+      isTemplate: false,
+      baseShowId: baseShow.id,
+      instanceDate: new Date(targetDate)
     };
     
-    const { error } = await saveShow(newInstance);
-    if (error) {
-      console.error('Error creating show instance:', error);
-      throw error;
-    }
+    const updatedShows = [...shows, newInstance];
+    saveShows(updatedShows);
     
     return newInstance;
   };
 
-  const addMatchToShow = async () => {
+  const addMatchToShow = () => {
     if (!newMatch.participants?.length || newMatch.participants.length < 2) {
       toast({
         title: "Error",
@@ -118,36 +157,24 @@ export const CalendarView = () => {
     let targetShow = selectedShow;
     
     // If this is a template (recurring show), create/find instance
-    if (selectedShow.is_template) {
-      try {
-        targetShow = await findOrCreateShowInstance(selectedShow, selectedDate);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to create show instance",
-          variant: "destructive"
-        });
-        return;
-      }
+    if (selectedShow.isTemplate) {
+      targetShow = findOrCreateShowInstance(selectedShow, selectedDate);
     }
 
-    const updatedShow = {
-      ...targetShow,
-      matches: [...(targetShow.matches || []), match]
-    };
+    const updatedShows = shows.map(show => 
+      show.id === targetShow.id 
+        ? { ...show, matches: [...(show.matches || []), match] }
+        : show
+    );
 
-    const { error } = await saveShow(updatedShow);
+    saveShows(updatedShows);
     
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add match to show",
-        variant: "destructive"
-      });
-      return;
+    // Update selectedShow to reflect the new match
+    const updatedTargetShow = updatedShows.find(s => s.id === targetShow.id);
+    if (updatedTargetShow) {
+      setSelectedShow(updatedTargetShow);
     }
     
-    setSelectedShow(updatedShow);
     setNewMatch({
       participants: [],
       type: "Singles",
@@ -159,6 +186,9 @@ export const CalendarView = () => {
       title: "Match Added",
       description: `Match has been added to ${targetShow.name} on ${selectedDate.toLocaleDateString()}.`
     });
+
+    // Force calendar refresh
+    refreshShows();
   };
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
@@ -196,81 +226,60 @@ export const CalendarView = () => {
 
     const showsForDate: Show[] = [];
 
-    // First, check for specific instances on this date that have matches
-    const instances = shows.filter(show => {
-      if (show.is_template) return false;
-      if (!show.instance_date) return false;
-      
-      try {
-        const instanceDate = new Date(show.instance_date);
-        const hasMatches = show.matches && show.matches.length > 0;
-        return instanceDate.toDateString() === cellDate.toDateString() && hasMatches;
-      } catch (error) {
-        console.error('Error parsing instance date:', error);
-        return false;
-      }
-    });
+    // First, check for specific instances on this date
+    const instances = shows.filter(show => 
+      !show.isTemplate && 
+      show.instanceDate?.toDateString() === cellDate.toDateString()
+    );
 
+    // For each instance found, add it to the results
     instances.forEach(instance => {
-      showsForDate.push({
-        ...instance,
-        instance_date: new Date(instance.instance_date!)
-      });
+      showsForDate.push(instance);
     });
 
-    // For recurring show templates, only show them if they're scheduled for this date AND it's the first occurrence
-    // This prevents templates from showing every week without matches
-    const templates = shows.filter(show => show.is_template && show.date);
+    // Then check for recurring show templates that should appear on this date
+    const templates = shows.filter(show => show.isTemplate && show.date);
     
     templates.forEach(template => {
       if (!template.date) return;
       
-      let showStartDate;
-      try {
-        showStartDate = new Date(template.date);
-        showStartDate.setHours(0, 0, 0, 0);
-      } catch (error) {
-        console.error('Error parsing template date:', error);
-        return;
-      }
+      const showStartDate = new Date(template.date);
+      showStartDate.setHours(0, 0, 0, 0);
 
       if (cellDate < showStartDate) {
         return; // Cannot occur before its start date
       }
 
       // Check if there's already an instance for this template on this date
-      const hasInstance = instances.some(instance => instance.base_show_id === template.id);
+      const hasInstance = instances.some(instance => instance.baseShowId === template.id);
       if (hasInstance) {
         return; // Don't show template if instance exists
       }
 
       let shouldShow = false;
 
-      // Only show the template on its exact start date for initial booking
-      // After that, only instances with matches should appear
       switch (template.frequency) {
         case 'one-time':
           shouldShow = cellDate.getTime() === showStartDate.getTime();
           break;
         
         case 'weekly':
-          // Only show if it's the exact start date (for initial setup)
-          shouldShow = cellDate.getTime() === showStartDate.getTime();
+          shouldShow = cellDate.getDay() === showStartDate.getDay();
           break;
 
         case 'monthly':
-          // Only show if it's the exact start date (for initial setup)
-          shouldShow = cellDate.getTime() === showStartDate.getTime();
+          shouldShow = cellDate.getDate() === showStartDate.getDate();
           break;
 
         case 'quarterly':
-          // Only show if it's the exact start date (for initial setup)
-          shouldShow = cellDate.getTime() === showStartDate.getTime();
+          if (cellDate.getDate() === showStartDate.getDate()) {
+            const monthDiff = (cellDate.getFullYear() - showStartDate.getFullYear()) * 12 + (cellDate.getMonth() - showStartDate.getMonth());
+            shouldShow = monthDiff >= 0 && monthDiff % 3 === 0;
+          }
           break;
 
         case 'yearly':
-          // Only show if it's the exact start date (for initial setup)
-          shouldShow = cellDate.getTime() === showStartDate.getTime();
+          shouldShow = cellDate.getDate() === showStartDate.getDate() && cellDate.getMonth() === showStartDate.getMonth();
           break;
 
         default:
@@ -278,10 +287,7 @@ export const CalendarView = () => {
       }
 
       if (shouldShow) {
-        showsForDate.push({
-          ...template,
-          date: new Date(template.date)
-        });
+        showsForDate.push(template);
       }
     });
 
@@ -291,44 +297,26 @@ export const CalendarView = () => {
   const handleShowClick = (show: Show, event: React.MouseEvent, clickDate: Date) => {
     event.stopPropagation();
     
-    console.log('Show clicked:', show);
-    console.log('Click date:', clickDate);
+    // If it's a template, find or get the latest instance data
+    let targetShow = show;
+    if (show.isTemplate) {
+      const existingInstance = shows.find(s => 
+        s.baseShowId === show.id && 
+        s.instanceDate?.toDateString() === clickDate.toDateString()
+      );
+      if (existingInstance) {
+        targetShow = existingInstance;
+      }
+    }
     
-    try {
-      // Safely handle show selection
-      let targetShow = { ...show };
-      
-      // If it's a template, find or get the latest instance data
-      if (show.is_template) {
-        const existingInstance = shows.find(s => 
-          s.base_show_id === show.id && 
-          s.instance_date && 
-          new Date(s.instance_date).toDateString() === clickDate.toDateString()
-        );
-        
-        if (existingInstance) {
-          targetShow = { ...existingInstance };
-        }
-      }
-      
-      // Ensure matches array exists
-      if (!targetShow.matches) {
-        targetShow.matches = [];
-      }
-      
-      setSelectedShow(targetShow);
-      setSelectedDate(new Date(clickDate));
-      
-      // Always show details dialog
+    setSelectedShow(targetShow);
+    setSelectedDate(new Date(clickDate));
+    
+    // If it's an instance or a template with matches, show details
+    if (!targetShow.isTemplate || (targetShow.matches && targetShow.matches.length > 0)) {
       setIsShowDetailsDialogOpen(true);
-      
-    } catch (error) {
-      console.error('Error handling show click:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load show details",
-        variant: "destructive"
-      });
+    } else {
+      setIsMatchDialogOpen(true);
     }
   };
 
@@ -366,15 +354,15 @@ export const CalendarView = () => {
           <div className="mt-1 space-y-1">
             {dayShows.map((show, index) => (
               <div 
-                key={`${show.id}-${day}-${index}`}
+                key={`${show.id}-${day}-${refreshKey}`}
                 className={`text-white text-xs px-1 rounded truncate cursor-pointer hover:opacity-80 ${getBrandColor(show.brand)} ${
-                  show.is_template ? 'opacity-75' : ''
+                  show.isTemplate ? 'opacity-75' : ''
                 }`}
-                title={`${show.name}${show.venue ? ` at ${show.venue}` : ''} - ${show.matches?.length || 0} matches`}
+                title={`${show.name}${show.venue ? ` at ${show.venue}` : ''} - ${show.matches?.length || 0} matches - Click to ${show.isTemplate ? 'add matches' : 'view details'}`}
                 onClick={(e) => handleShowClick(show, e, clickDate)}
               >
                 {show.name} ({show.matches?.length || 0})
-                {show.is_template && <span className="ml-1 text-xs">📅</span>}
+                {show.isTemplate && <span className="ml-1 text-xs">📅</span>}
               </div>
             ))}
           </div>
@@ -384,14 +372,6 @@ export const CalendarView = () => {
     
     return days;
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -408,10 +388,10 @@ export const CalendarView = () => {
           <DialogHeader>
             <DialogTitle className="text-white">
               {selectedShow?.name} - {selectedDate?.toLocaleDateString()}
-              {selectedShow?.is_template && " (Recurring Show)"}
+              {selectedShow?.isTemplate && " (Recurring Show)"}
             </DialogTitle>
           </DialogHeader>
-          {selectedShow && selectedDate && (
+          {selectedShow && (
             <div className="space-y-6">
               {/* Show Information */}
               <div className="bg-slate-700/50 border border-green-500/30 rounded-lg p-4">
@@ -425,7 +405,7 @@ export const CalendarView = () => {
                   <div>
                     <span className="text-slate-400">Type:</span>
                     <span className="text-white ml-2">
-                      {selectedShow.is_template ? "Recurring Template" : "Specific Instance"}
+                      {selectedShow.isTemplate ? "Recurring Template" : "Specific Instance"}
                     </span>
                   </div>
                   {selectedShow.venue && (
@@ -451,7 +431,7 @@ export const CalendarView = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold text-green-200">
-                    Match Card for {selectedDate.toLocaleDateString()} ({selectedShow.matches?.length || 0} matches)
+                    Match Card for {selectedDate?.toLocaleDateString()} ({selectedShow.matches?.length || 0} matches)
                   </h3>
                   <Button onClick={openMatchBooking} className="bg-green-600 hover:bg-green-700">
                     <Plus className="w-4 h-4 mr-2" />
@@ -462,10 +442,10 @@ export const CalendarView = () => {
                 {selectedShow.matches && selectedShow.matches.length > 0 ? (
                   <div className="space-y-3">
                     {selectedShow.matches.map((match, index) => (
-                      <div key={match.id || index} className="bg-slate-700/50 border border-green-500/30 rounded-lg p-4">
+                      <div key={match.id} className="bg-slate-700/50 border border-green-500/30 rounded-lg p-4">
                         <div className="flex justify-between items-start mb-2">
                           <div className="flex-1">
-                            <h4 className="font-semibold text-white">{match.participants?.join(" vs ") || "TBD"}</h4>
+                            <h4 className="font-semibold text-white">{match.participants.join(" vs ")}</h4>
                             <p className="text-sm text-green-200">{match.type}</p>
                           </div>
                           <span className="text-sm text-slate-400">Match #{index + 1}</span>
@@ -492,7 +472,7 @@ export const CalendarView = () => {
                   <div className="text-center py-8 bg-slate-700/30 rounded-lg border border-green-500/30">
                     <Users className="w-8 h-8 text-green-400 mx-auto mb-2" />
                     <p className="text-green-200 mb-2">No matches booked for this date</p>
-                    <p className="text-sm text-slate-400 mb-4">Start building your match card for {selectedDate.toLocaleDateString()}</p>
+                    <p className="text-sm text-slate-400 mb-4">Start building your match card for {selectedDate?.toLocaleDateString()}</p>
                     <Button onClick={openMatchBooking} className="bg-green-600 hover:bg-green-700">
                       <Plus className="w-4 h-4 mr-2" />
                       Book First Match
@@ -538,7 +518,7 @@ export const CalendarView = () => {
               <div className="space-y-2">
                 {wrestlers.length > 0 ? (
                   <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                    {wrestlers.filter(wrestler => wrestler.name && wrestler.name.trim()).map((wrestler) => (
+                    {wrestlers.map((wrestler) => (
                       <label key={wrestler.id} className="flex items-center space-x-2 text-sm text-white">
                         <input
                           type="checkbox"
@@ -566,19 +546,13 @@ export const CalendarView = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="championship" className="text-green-200">Championship (Optional)</Label>
-                <Select value={newMatch.championship || ""} onValueChange={(value) => setNewMatch({...newMatch, championship: value || undefined})}>
-                  <SelectTrigger className="bg-slate-700 border-green-500/30 text-white">
-                    <SelectValue placeholder="Select championship" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-green-500/30">
-                    <SelectItem value="none">No Championship</SelectItem>
-                    {championships.filter(championship => championship.name && championship.name.trim()).map((championship) => (
-                      <SelectItem key={championship.id} value={championship.name}>
-                        {championship.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="championship"
+                  value={newMatch.championship || ""}
+                  onChange={(e) => setNewMatch({...newMatch, championship: e.target.value})}
+                  className="bg-slate-700 border-green-500/30 text-white"
+                  placeholder="e.g. WWE Championship"
+                />
               </div>
               <div>
                 <Label htmlFor="stipulation" className="text-green-200">Stipulation (Optional)</Label>
@@ -611,7 +585,6 @@ export const CalendarView = () => {
         </DialogContent>
       </Dialog>
 
-      
       <Card className="bg-slate-800/50 border-green-500/30">
         <CardHeader>
           <div className="flex justify-between items-center">
@@ -654,6 +627,26 @@ export const CalendarView = () => {
           </div>
           
           <div className="mt-6 flex space-x-4 flex-wrap">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-red-600 rounded"></div>
+              <span className="text-purple-200 text-sm">Raw</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-blue-600 rounded"></div>
+              <span className="text-purple-200 text-sm">SmackDown</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-yellow-600 rounded"></div>
+              <span className="text-purple-200 text-sm">NXT</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-orange-600 rounded"></div>
+              <span className="text-purple-200 text-sm">Pay-Per-View</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-green-600 rounded"></div>
+              <span className="text-purple-200 text-sm">Special Event</span>
+            </div>
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-purple-600 rounded"></div>
               <span className="text-purple-200 text-sm">Today</span>

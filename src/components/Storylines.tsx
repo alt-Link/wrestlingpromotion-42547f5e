@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,26 +11,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { BookOpen, Plus, Edit, Trash2, Target, Calendar, Clock, MapPin, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useUniverseData } from "@/hooks/useUniverseData";
 
 interface Storyline {
   id: string;
   title: string;
+  wrestler: string;
   wrestlers: string[];
   status: string;
   priority: string;
-  start_date: string;
-  end_date?: string;
+  startDate: string;
+  estimatedEndDate?: string;
   description: string;
+  objectives: string[];
+  milestones: Milestone[];
   notes: string;
   timeline: TimelineEvent[];
-  storyline_type: 'individual' | 'faction' | 'tag_team';
-  faction_betrayal_coming?: boolean;
-  faction_new_member_coming?: boolean;
-  faction_betrayal_description?: string;
-  faction_new_member_description?: string;
-  faction_new_member_wrestler?: string;
-  history: HistoryEvent[];
+}
+
+interface Milestone {
+  id: string;
+  title: string;
+  completed: boolean;
+  date?: string;
+  description: string;
 }
 
 interface TimelineEvent {
@@ -41,18 +45,9 @@ interface TimelineEvent {
   completed: boolean;
 }
 
-interface HistoryEvent {
-  id: string;
-  date: string;
-  action: string;
-  description: string;
-  user_action: boolean;
-}
-
 export const Storylines = () => {
-  const { data, loading, saveStoryline, deleteRecord } = useUniverseData();
-  const { toast } = useToast();
-  
+  const [storylines, setStorylines] = useState<Storyline[]>([]);
+  const [wrestlers, setWrestlers] = useState<any[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingStoryline, setEditingStoryline] = useState<Storyline | null>(null);
@@ -62,64 +57,72 @@ export const Storylines = () => {
     type: "event" as const,
     description: ""
   });
+  const { toast } = useToast();
 
   const [newStoryline, setNewStoryline] = useState<Partial<Storyline>>({
     title: "",
+    wrestler: "",
     wrestlers: [],
     status: "planning",
     priority: "medium",
     description: "",
+    objectives: [],
+    milestones: [],
     notes: "",
-    timeline: [],
-    storyline_type: "individual",
-    faction_betrayal_coming: false,
-    faction_new_member_coming: false,
-    faction_betrayal_description: "",
-    faction_new_member_description: "",
-    faction_new_member_wrestler: "",
-    history: []
+    timeline: []
   });
 
-  const storylines = data.storylines || [];
-  const wrestlers = data.wrestlers || [];
+  useEffect(() => {
+    const savedStorylines = localStorage.getItem("storylines");
+    if (savedStorylines) {
+      const parsed = JSON.parse(savedStorylines);
+      // Migrate old storylines to include wrestlers array
+      const migrated = parsed.map((storyline: any) => ({
+        ...storyline,
+        wrestlers: storyline.wrestlers || (storyline.wrestler ? [storyline.wrestler] : [])
+      }));
+      setStorylines(migrated);
+    }
 
-  // Get faction wrestlers based on selected wrestlers
-  const getFactionWrestlers = (selectedWrestlers: string[]) => {
-    if (!selectedWrestlers.length) return [];
-    
-    // Find the faction of the first selected wrestler
-    const firstWrestler = wrestlers.find(w => selectedWrestlers.includes(w.name));
-    if (!firstWrestler?.faction) return [];
-    
-    // Return all wrestlers in the same faction
-    return wrestlers.filter(w => w.faction === firstWrestler.faction);
+    const savedWrestlers = localStorage.getItem("wrestlers");
+    if (savedWrestlers) {
+      setWrestlers(JSON.parse(savedWrestlers));
+    }
+  }, []);
+
+  const saveStorylines = (updatedStorylines: Storyline[]) => {
+    setStorylines(updatedStorylines);
+    localStorage.setItem("storylines", JSON.stringify(updatedStorylines));
   };
 
   const generateTimeline = (storyline: Partial<Storyline>): TimelineEvent[] => {
     const timeline: TimelineEvent[] = [];
     
-    if (!storyline.start_date || !storyline.end_date) return timeline;
+    if (!storyline.startDate || !storyline.estimatedEndDate) return timeline;
 
-    const startDate = new Date(storyline.start_date);
-    const endDate = new Date(storyline.end_date);
+    const startDate = new Date(storyline.startDate);
+    const endDate = new Date(storyline.estimatedEndDate);
     const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     
     if (totalDays <= 0) return timeline;
 
+    // Generate key storyline beats based on priority and description
+    const keyEvents = [];
+    
     // Opening event
-    timeline.push({
+    keyEvents.push({
       id: `timeline-${Date.now()}-1`,
       title: `${storyline.title} Begins`,
-      date: storyline.start_date,
+      date: storyline.startDate,
       type: 'event' as const,
-      description: `Start of ${storyline.title} storyline`,
+      description: `Start of ${storyline.title} storyline for ${storyline.wrestler}`,
       completed: false
     });
 
     // Mid-point development (25% through)
     if (totalDays > 7) {
       const midPoint1 = new Date(startDate.getTime() + (totalDays * 0.25 * 24 * 60 * 60 * 1000));
-      timeline.push({
+      keyEvents.push({
         id: `timeline-${Date.now()}-2`,
         title: 'First Major Development',
         date: midPoint1.toISOString(),
@@ -132,7 +135,7 @@ export const Storylines = () => {
     // Climax build-up (75% through)
     if (totalDays > 14) {
       const climaxBuild = new Date(startDate.getTime() + (totalDays * 0.75 * 24 * 60 * 60 * 1000));
-      timeline.push({
+      keyEvents.push({
         id: `timeline-${Date.now()}-3`,
         title: 'Climax Build-Up',
         date: climaxBuild.toISOString(),
@@ -143,20 +146,20 @@ export const Storylines = () => {
     }
 
     // Resolution
-    timeline.push({
+    keyEvents.push({
       id: `timeline-${Date.now()}-4`,
       title: `${storyline.title} Conclusion`,
-      date: storyline.end_date,
+      date: storyline.estimatedEndDate,
       type: 'milestone' as const,
       description: `Planned conclusion of ${storyline.title}`,
       completed: false
     });
 
-    return timeline;
+    return keyEvents;
   };
 
-  const addStoryline = async () => {
-    if (!newStoryline.title?.trim() || (!newStoryline.wrestlers || newStoryline.wrestlers.length === 0)) {
+  const addStoryline = () => {
+    if (!newStoryline.title?.trim() || (!newStoryline.wrestler?.trim() && (!newStoryline.wrestlers || newStoryline.wrestlers.length === 0))) {
       toast({
         title: "Error",
         description: "Title and at least one wrestler are required",
@@ -166,59 +169,40 @@ export const Storylines = () => {
     }
 
     const timeline = generateTimeline(newStoryline);
-    const historyEvent = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      action: "created",
-      description: "Storyline created",
-      user_action: true
-    };
+    const selectedWrestlers = newStoryline.wrestlers && newStoryline.wrestlers.length > 0 
+      ? newStoryline.wrestlers 
+      : [newStoryline.wrestler!];
 
-    const storyline = {
+    const storyline: Storyline = {
+      id: Date.now().toString(),
       title: newStoryline.title!,
-      wrestlers: newStoryline.wrestlers,
+      wrestler: selectedWrestlers[0],
+      wrestlers: selectedWrestlers,
       status: newStoryline.status || "planning",
       priority: newStoryline.priority || "medium",
-      start_date: newStoryline.start_date || new Date().toISOString(),
-      end_date: newStoryline.end_date,
+      startDate: newStoryline.startDate || new Date().toISOString(),
+      estimatedEndDate: newStoryline.estimatedEndDate,
       description: newStoryline.description || "",
+      objectives: [],
+      milestones: [],
       notes: newStoryline.notes || "",
-      timeline,
-      storyline_type: newStoryline.storyline_type || "individual",
-      faction_betrayal_coming: newStoryline.faction_betrayal_coming || false,
-      faction_new_member_coming: newStoryline.faction_new_member_coming || false,
-      faction_betrayal_description: newStoryline.faction_betrayal_description || "",
-      faction_new_member_description: newStoryline.faction_new_member_description || "",
-      faction_new_member_wrestler: newStoryline.faction_new_member_wrestler || "",
-      history: [historyEvent]
+      timeline
     };
 
-    const { error } = await saveStoryline(storyline);
-    
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create storyline. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
+    const updatedStorylines = [...storylines, storyline];
+    saveStorylines(updatedStorylines);
     
     setNewStoryline({
       title: "",
+      wrestler: "",
       wrestlers: [],
       status: "planning",
       priority: "medium",
       description: "",
+      objectives: [],
+      milestones: [],
       notes: "",
-      timeline: [],
-      storyline_type: "individual",
-      faction_betrayal_coming: false,
-      faction_new_member_coming: false,
-      faction_betrayal_description: "",
-      faction_new_member_description: "",
-      faction_new_member_wrestler: "",
-      history: []
+      timeline: []
     });
     setIsAddDialogOpen(false);
     
@@ -228,15 +212,15 @@ export const Storylines = () => {
     });
   };
 
-  const startEditStoryline = (storyline: any) => {
+  const startEditStoryline = (storyline: Storyline) => {
     setEditingStoryline({
       ...storyline,
-      wrestlers: storyline.wrestlers || []
+      wrestlers: storyline.wrestlers || (storyline.wrestler ? [storyline.wrestler] : [])
     });
     setIsEditDialogOpen(true);
   };
 
-  const saveEditedStoryline = async () => {
+  const saveEditedStoryline = () => {
     if (!editingStoryline) return;
 
     if (!editingStoryline.title?.trim() || (!editingStoryline.wrestlers || editingStoryline.wrestlers.length === 0)) {
@@ -248,30 +232,14 @@ export const Storylines = () => {
       return;
     }
 
-    const historyEvent = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      action: "updated",
-      description: "Storyline updated",
-      user_action: true
-    };
-
-    const updatedStoryline = {
-      ...editingStoryline,
-      history: [...(editingStoryline.history || []), historyEvent]
-    };
-
-    const { error } = await saveStoryline(updatedStoryline);
+    const updatedStorylines = storylines.map(s => 
+      s.id === editingStoryline.id ? {
+        ...editingStoryline,
+        wrestler: editingStoryline.wrestlers[0] // Keep backward compatibility
+      } : s
+    );
     
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update storyline. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
+    saveStorylines(updatedStorylines);
     setEditingStoryline(null);
     setIsEditDialogOpen(false);
     
@@ -353,18 +321,9 @@ export const Storylines = () => {
     });
   };
 
-  const handleDeleteStoryline = async (id: string) => {
-    const { error } = await deleteRecord('storylines', id);
-    
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete storyline. Please try again.",
-        variant: "destructive"
-      });
-      return;
-    }
-
+  const deleteStoryline = (id: string) => {
+    const updatedStorylines = storylines.filter(s => s.id !== id);
+    saveStorylines(updatedStorylines);
     toast({
       title: "Storyline Deleted",
       description: "Storyline has been removed from your planning."
@@ -401,14 +360,6 @@ export const Storylines = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -439,115 +390,22 @@ export const Storylines = () => {
                 />
               </div>
 
-              <div>
-                <Label className="text-indigo-200">Storyline Type</Label>
-                <Select value={newStoryline.storyline_type} onValueChange={(value: any) => setNewStoryline({...newStoryline, storyline_type: value})}>
-                  <SelectTrigger className="bg-slate-700 border-indigo-500/30 text-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-slate-700 border-indigo-500/30">
-                    <SelectItem value="individual">Individual</SelectItem>
-                    <SelectItem value="faction">Faction</SelectItem>
-                    <SelectItem value="tag_team">Tag Team</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {newStoryline.storyline_type === 'faction' && (
-                <div className="space-y-4 bg-slate-700/50 p-4 rounded-lg">
-                  <h4 className="text-indigo-200 font-medium">Faction Options</h4>
-                  
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="betrayalComing"
-                        checked={newStoryline.faction_betrayal_coming || false}
-                        onCheckedChange={(checked) => setNewStoryline({...newStoryline, faction_betrayal_coming: !!checked})}
-                      />
-                      <Label htmlFor="betrayalComing" className="text-white">Betrayal Coming?</Label>
-                    </div>
-                    
-                    {newStoryline.faction_betrayal_coming && (
-                      <div className="space-y-2 ml-6">
-                        <div>
-                          <Label className="text-indigo-200 text-sm">Who betrays?</Label>
-                          <Select 
-                            value={newStoryline.faction_new_member_wrestler || ""} 
-                            onValueChange={(value) => setNewStoryline({...newStoryline, faction_new_member_wrestler: value})}
-                          >
-                            <SelectTrigger className="bg-slate-600 border-indigo-500/30 text-white">
-                              <SelectValue placeholder="Select wrestler" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-slate-700 border-indigo-500/30">
-                              {getFactionWrestlers(newStoryline.wrestlers || []).map((wrestler: any) => (
-                                <SelectItem key={wrestler.id} value={wrestler.name}>
-                                  {wrestler.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-indigo-200 text-sm">Betrayal Description (Optional)</Label>
-                          <Textarea
-                            value={newStoryline.faction_betrayal_description || ""}
-                            onChange={(e) => setNewStoryline({...newStoryline, faction_betrayal_description: e.target.value})}
-                            className="bg-slate-600 border-indigo-500/30 text-white"
-                            placeholder="Describe the betrayal setup..."
-                            rows={2}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="newMemberComing"
-                        checked={newStoryline.faction_new_member_coming || false}
-                        onCheckedChange={(checked) => setNewStoryline({...newStoryline, faction_new_member_coming: !!checked})}
-                      />
-                      <Label htmlFor="newMemberComing" className="text-white">New Member Coming?</Label>
-                    </div>
-                    
-                    {newStoryline.faction_new_member_coming && (
-                      <div className="space-y-2 ml-6">
-                        <div>
-                          <Label className="text-indigo-200 text-sm">Who joins?</Label>
-                          <Select 
-                            value={newStoryline.faction_new_member_wrestler || ""} 
-                            onValueChange={(value) => setNewStoryline({...newStoryline, faction_new_member_wrestler: value})}
-                          >
-                            <SelectTrigger className="bg-slate-600 border-indigo-500/30 text-white">
-                              <SelectValue placeholder="Select wrestler" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-slate-700 border-indigo-500/30">
-                              {wrestlers.filter((w: any) => !w.faction || w.faction === "").map((wrestler: any) => (
-                                <SelectItem key={wrestler.id} value={wrestler.name}>
-                                  {wrestler.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-indigo-200 text-sm">New Member Description (Optional)</Label>
-                          <Textarea
-                            value={newStoryline.faction_new_member_description || ""}
-                            onChange={(e) => setNewStoryline({...newStoryline, faction_new_member_description: e.target.value})}
-                            className="bg-slate-600 border-indigo-500/30 text-white"
-                            placeholder="Describe how they join..."
-                            rows={2}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-indigo-200">Wrestler</Label>
+                  <Select value={newStoryline.wrestler} onValueChange={(value) => setNewStoryline({...newStoryline, wrestler: value})}>
+                    <SelectTrigger className="bg-slate-700 border-indigo-500/30 text-white">
+                      <SelectValue placeholder="Select wrestler" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-700 border-indigo-500/30">
+                      {wrestlers.map((wrestler) => (
+                        <SelectItem key={wrestler.id} value={wrestler.name}>
+                          {wrestler.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label className="text-indigo-200">Priority</Label>
                   <Select value={newStoryline.priority} onValueChange={(value) => setNewStoryline({...newStoryline, priority: value})}>
@@ -561,21 +419,6 @@ export const Storylines = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label className="text-indigo-200">Status</Label>
-                  <Select value={newStoryline.status} onValueChange={(value) => setNewStoryline({...newStoryline, status: value})}>
-                    <SelectTrigger className="bg-slate-700 border-indigo-500/30 text-white">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-slate-700 border-indigo-500/30">
-                      <SelectItem value="planning">Planning</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="paused">Paused</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="cancelled">Cancelled</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -584,8 +427,8 @@ export const Storylines = () => {
                   <Input
                     id="startDate"
                     type="date"
-                    value={newStoryline.start_date?.split('T')[0] || ""}
-                    onChange={(e) => setNewStoryline({...newStoryline, start_date: e.target.value ? new Date(e.target.value).toISOString() : ""})}
+                    value={newStoryline.startDate?.split('T')[0] || ""}
+                    onChange={(e) => setNewStoryline({...newStoryline, startDate: e.target.value ? new Date(e.target.value).toISOString() : ""})}
                     className="bg-slate-700 border-indigo-500/30 text-white"
                   />
                 </div>
@@ -594,46 +437,27 @@ export const Storylines = () => {
                   <Input
                     id="endDate"
                     type="date"
-                    value={newStoryline.end_date?.split('T')[0] || ""}
-                    onChange={(e) => setNewStoryline({...newStoryline, end_date: e.target.value ? new Date(e.target.value).toISOString() : ""})}
+                    value={newStoryline.estimatedEndDate?.split('T')[0] || ""}
+                    onChange={(e) => setNewStoryline({...newStoryline, estimatedEndDate: e.target.value ? new Date(e.target.value).toISOString() : ""})}
                     className="bg-slate-700 border-indigo-500/30 text-white"
                   />
                 </div>
               </div>
 
               <div>
-                <Label className="text-indigo-200">Wrestlers</Label>
-                <div className="bg-slate-700/50 p-4 rounded-lg max-h-32 overflow-y-auto">
-                  {wrestlers.length === 0 ? (
-                    <p className="text-slate-400 text-sm">No wrestlers available. Add wrestlers to your roster first.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {wrestlers.map((wrestler: any) => (
-                        <div key={wrestler.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`new-wrestler-${wrestler.id}`}
-                            checked={newStoryline.wrestlers?.includes(wrestler.name) || false}
-                            onCheckedChange={(checked) => {
-                              const currentWrestlers = newStoryline.wrestlers || [];
-                              if (checked) {
-                                setNewStoryline({...newStoryline, wrestlers: [...currentWrestlers, wrestler.name]});
-                              } else {
-                                setNewStoryline({...newStoryline, wrestlers: currentWrestlers.filter(w => w !== wrestler.name)});
-                              }
-                            }}
-                            className="border-indigo-400"
-                          />
-                          <Label 
-                            htmlFor={`new-wrestler-${wrestler.id}`} 
-                            className="text-white text-sm cursor-pointer flex-1"
-                          >
-                            {wrestler.name} <span className="text-slate-400">({wrestler.brand})</span>
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                <Label className="text-indigo-200">Status</Label>
+                <Select value={newStoryline.status} onValueChange={(value) => setNewStoryline({...newStoryline, status: value})}>
+                  <SelectTrigger className="bg-slate-700 border-indigo-500/30 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-slate-700 border-indigo-500/30">
+                    <SelectItem value="planning">Planning</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="paused">Paused</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
@@ -689,121 +513,13 @@ export const Storylines = () => {
                     />
                   </div>
 
-                  <div>
-                    <Label className="text-indigo-200">Storyline Type</Label>
-                    <Select value={editingStoryline.storyline_type} onValueChange={(value: any) => setEditingStoryline({...editingStoryline, storyline_type: value})}>
-                      <SelectTrigger className="bg-slate-700 border-indigo-500/30 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-700 border-indigo-500/30">
-                        <SelectItem value="individual">Individual</SelectItem>
-                        <SelectItem value="faction">Faction</SelectItem>
-                        <SelectItem value="tag_team">Tag Team</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {editingStoryline.storyline_type === 'faction' && (
-                    <div className="space-y-4 bg-slate-700/50 p-4 rounded-lg">
-                      <h4 className="text-indigo-200 font-medium">Faction Options</h4>
-                      
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="editBetrayalComing"
-                            checked={editingStoryline.faction_betrayal_coming || false}
-                            onCheckedChange={(checked) => setEditingStoryline({...editingStoryline, faction_betrayal_coming: !!checked})}
-                          />
-                          <Label htmlFor="editBetrayalComing" className="text-white">Betrayal Coming?</Label>
-                        </div>
-                        
-                        {editingStoryline.faction_betrayal_coming && (
-                          <div className="space-y-2 ml-6">
-                            <div>
-                              <Label className="text-indigo-200 text-sm">Who betrays?</Label>
-                              <Select 
-                                value={editingStoryline.faction_new_member_wrestler || ""} 
-                                onValueChange={(value) => setEditingStoryline({...editingStoryline, faction_new_member_wrestler: value})}
-                              >
-                                <SelectTrigger className="bg-slate-600 border-indigo-500/30 text-white">
-                                  <SelectValue placeholder="Select wrestler" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-slate-700 border-indigo-500/30">
-                                  {getFactionWrestlers(editingStoryline.wrestlers || []).map((wrestler: any) => (
-                                    <SelectItem key={wrestler.id} value={wrestler.name}>
-                                      {wrestler.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label className="text-indigo-200 text-sm">Betrayal Description</Label>
-                              <Textarea
-                                value={editingStoryline.faction_betrayal_description || ""}
-                                onChange={(e) => setEditingStoryline({...editingStoryline, faction_betrayal_description: e.target.value})}
-                                className="bg-slate-600 border-indigo-500/30 text-white"
-                                placeholder="Describe the betrayal setup..."
-                                rows={2}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id="editNewMemberComing"
-                            checked={editingStoryline.faction_new_member_coming || false}
-                            onCheckedChange={(checked) => setEditingStoryline({...editingStoryline, faction_new_member_coming: !!checked})}
-                          />
-                          <Label htmlFor="editNewMemberComing" className="text-white">New Member Coming?</Label>
-                        </div>
-                        
-                        {editingStoryline.faction_new_member_coming && (
-                          <div className="space-y-2 ml-6">
-                            <div>
-                              <Label className="text-indigo-200 text-sm">Who joins?</Label>
-                              <Select 
-                                value={editingStoryline.faction_new_member_wrestler || ""} 
-                                onValueChange={(value) => setEditingStoryline({...editingStoryline, faction_new_member_wrestler: value})}
-                              >
-                                <SelectTrigger className="bg-slate-600 border-indigo-500/30 text-white">
-                                  <SelectValue placeholder="Select wrestler" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-slate-700 border-indigo-500/30">
-                                  {wrestlers.filter((w: any) => !w.faction || w.faction === "").map((wrestler: any) => (
-                                    <SelectItem key={wrestler.id} value={wrestler.name}>
-                                      {wrestler.name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div>
-                              <Label className="text-indigo-200 text-sm">New Member Description</Label>
-                              <Textarea
-                                value={editingStoryline.faction_new_member_description || ""}
-                                onChange={(e) => setEditingStoryline({...editingStoryline, faction_new_member_description: e.target.value})}
-                                className="bg-slate-600 border-indigo-500/30 text-white"
-                                placeholder="Describe how they join..."
-                                rows={2}
-                              />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-indigo-200">Start Date</Label>
                       <Input
                         type="date"
-                        value={editingStoryline.start_date?.split('T')[0] || ""}
-                        onChange={(e) => setEditingStoryline({...editingStoryline, start_date: e.target.value ? new Date(e.target.value).toISOString() : editingStoryline.start_date})}
+                        value={editingStoryline.startDate?.split('T')[0] || ""}
+                        onChange={(e) => setEditingStoryline({...editingStoryline, startDate: e.target.value ? new Date(e.target.value).toISOString() : editingStoryline.startDate})}
                         className="bg-slate-700 border-indigo-500/30 text-white"
                       />
                     </div>
@@ -811,8 +527,8 @@ export const Storylines = () => {
                       <Label className="text-indigo-200">Estimated End Date</Label>
                       <Input
                         type="date"
-                        value={editingStoryline.end_date?.split('T')[0] || ""}
-                        onChange={(e) => setEditingStoryline({...editingStoryline, end_date: e.target.value ? new Date(e.target.value).toISOString() : ""})}
+                        value={editingStoryline.estimatedEndDate?.split('T')[0] || ""}
+                        onChange={(e) => setEditingStoryline({...editingStoryline, estimatedEndDate: e.target.value ? new Date(e.target.value).toISOString() : ""})}
                         className="bg-slate-700 border-indigo-500/30 text-white"
                       />
                     </div>
@@ -870,7 +586,7 @@ export const Storylines = () => {
                   </div>
                 </div>
 
-                {/* Right Column - Wrestlers, Timeline & History */}
+                {/* Right Column - Wrestlers & Timeline */}
                 <div className="space-y-4">
                   {/* Wrestler Selection */}
                   <div>
@@ -880,7 +596,7 @@ export const Storylines = () => {
                         <p className="text-slate-400 text-sm">No wrestlers available. Add wrestlers to your roster first.</p>
                       ) : (
                         <div className="space-y-2">
-                          {wrestlers.map((wrestler: any) => (
+                          {wrestlers.map((wrestler) => (
                             <div key={wrestler.id} className="flex items-center space-x-2">
                               <Checkbox
                                 id={`wrestler-${wrestler.id}`}
@@ -964,7 +680,7 @@ export const Storylines = () => {
                     </div>
 
                     {/* Timeline Events List */}
-                    <div className="max-h-32 overflow-y-auto space-y-2 mb-4">
+                    <div className="max-h-48 overflow-y-auto space-y-2">
                       {editingStoryline.timeline && editingStoryline.timeline.length > 0 ? (
                         editingStoryline.timeline
                           .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
@@ -1000,32 +716,6 @@ export const Storylines = () => {
                       )}
                     </div>
                   </div>
-
-                  {/* History Section */}
-                  <div>
-                    <Label className="text-indigo-200 mb-3 block">Storyline History</Label>
-                    <div className="bg-slate-700/50 p-4 rounded-lg max-h-32 overflow-y-auto">
-                      {editingStoryline.history && editingStoryline.history.length > 0 ? (
-                        <div className="space-y-2">
-                          {editingStoryline.history
-                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                            .map((historyEvent) => (
-                              <div key={historyEvent.id} className="text-sm">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-white font-medium">{historyEvent.action}</span>
-                                  <span className="text-slate-400 text-xs">
-                                    {new Date(historyEvent.date).toLocaleDateString()}
-                                  </span>
-                                </div>
-                                <div className="text-slate-300 text-xs">{historyEvent.description}</div>
-                              </div>
-                            ))}
-                        </div>
-                      ) : (
-                        <p className="text-slate-400 text-sm">No history yet</p>
-                      )}
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -1052,7 +742,7 @@ export const Storylines = () => {
 
       {/* Storylines Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {storylines.map((storyline: any) => (
+        {storylines.map((storyline) => (
           <Card key={storyline.id} className="bg-slate-800/50 border-indigo-500/30 hover:border-indigo-400/50 transition-colors">
             <CardHeader className="pb-3">
               <div className="flex justify-between items-start">
@@ -1070,7 +760,7 @@ export const Storylines = () => {
                     size="sm" 
                     variant="ghost" 
                     className="text-red-400 hover:bg-red-500/20"
-                    onClick={() => handleDeleteStoryline(storyline.id)}
+                    onClick={() => deleteStoryline(storyline.id)}
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
@@ -1085,29 +775,15 @@ export const Storylines = () => {
                 <Badge className={`${getPriorityColor(storyline.priority)} text-white`}>
                   {storyline.priority} priority
                 </Badge>
-                <Badge className="bg-purple-600 text-white">
-                  {storyline.storyline_type?.replace('_', ' ') || 'individual'}
-                </Badge>
               </div>
               
-              <div className="text-sm text-indigo-200">
+              <p className="text-sm text-indigo-200">
                 <Target className="w-4 h-4 inline mr-1" />
-                <span className="font-medium">Wrestlers:</span> {storyline.wrestlers?.join(', ') || 'None'}
-              </div>
+                <span className="font-medium">Wrestler:</span> {storyline.wrestler}
+              </p>
               
               {storyline.description && (
                 <p className="text-sm text-slate-400">{storyline.description}</p>
-              )}
-
-              {storyline.storyline_type === 'faction' && (storyline.faction_betrayal_coming || storyline.faction_new_member_coming) && (
-                <div className="bg-slate-700/50 p-2 rounded text-xs">
-                  {storyline.faction_betrayal_coming && (
-                    <div className="text-red-400">⚠️ Betrayal planned</div>
-                  )}
-                  {storyline.faction_new_member_coming && (
-                    <div className="text-green-400">✨ New member coming</div>
-                  )}
-                </div>
               )}
 
               {/* Timeline Section */}
@@ -1115,10 +791,10 @@ export const Storylines = () => {
                 <div className="bg-slate-700/50 p-3 rounded">
                   <h4 className="text-sm font-medium text-indigo-200 mb-2 flex items-center">
                     <MapPin className="w-4 h-4 mr-1" />
-                    Timeline
+                    Generated Timeline
                   </h4>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {storyline.timeline.slice(0, 3).map((event: any) => (
+                    {storyline.timeline.slice(0, 3).map((event) => (
                       <div key={event.id} className="text-xs text-slate-300 flex items-center">
                         <span className="mr-2">{getTypeIcon(event.type)}</span>
                         <div className="flex-1">
@@ -1145,12 +821,12 @@ export const Storylines = () => {
               <div className="flex items-center justify-between text-xs text-indigo-200 mt-3">
                 <div className="flex items-center">
                   <Calendar className="w-4 h-4 mr-1" />
-                  {new Date(storyline.start_date).toLocaleDateString()}
+                  {new Date(storyline.startDate).toLocaleDateString()}
                 </div>
-                {storyline.end_date && (
+                {storyline.estimatedEndDate && (
                   <div className="flex items-center">
                     <Clock className="w-4 h-4 mr-1" />
-                    {new Date(storyline.end_date).toLocaleDateString()}
+                    {new Date(storyline.estimatedEndDate).toLocaleDateString()}
                   </div>
                 )}
               </div>

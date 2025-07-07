@@ -1,79 +1,103 @@
-
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RosterManager } from "@/components/RosterManager";
 import { ChampionshipManager } from "@/components/ChampionshipManager";
 import { ShowBooking } from "@/components/ShowBooking";
-import { CalendarView } from "@/components/CalendarView";
 import { RivalryTracker } from "@/components/RivalryTracker";
-import { Storylines } from "@/components/Storylines";
-import { Settings } from "@/components/Settings";
+import { CalendarView } from "@/components/CalendarView";
 import { UniverseStats } from "@/components/UniverseStats";
-import { Factions } from "@/components/Factions";
-import { AppHeader } from "@/components/AppHeader";
-import { useUniverseData } from "@/hooks/useUniverseData";
-import { useAutoSave } from "@/hooks/useAutoSave";
+import { Settings } from "@/components/Settings";
+import { Storylines } from "@/components/Storylines";
+import { Trophy, Users, Calendar, Zap, BarChart3, Settings as SettingsIcon, Download, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
-  const { data, loading, refetch } = useUniverseData();
+  const [activeTab, setActiveTab] = useState("dashboard");
   const { toast } = useToast();
-  const [saving, setSaving] = useState(false);
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      // Trigger a refetch to ensure data is up to date
-      await refetch();
-      toast({
-        title: "Saved Successfully",
-        description: "All your changes have been saved to the cloud.",
-      });
-    } catch (error) {
-      toast({
-        title: "Save Error",
-        description: "Failed to save. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
+  const handleExportData = () => {
+    // Get universe data from localStorage
+    const universeData = {
+      wrestlers: JSON.parse(localStorage.getItem("wrestlers") || "[]"),
+      championships: JSON.parse(localStorage.getItem("championships") || "[]"),
+      shows: JSON.parse(localStorage.getItem("shows") || "[]"),
+      rivalries: JSON.parse(localStorage.getItem("rivalries") || "[]"),
+      exportDate: new Date().toISOString()
+    };
+
+    const dataStr = JSON.stringify(universeData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `wrestling-universe-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "Universe Exported",
+      description: "Your wrestling universe data has been downloaded successfully.",
+    });
   };
 
-  // Set up auto-save
-  useAutoSave({
-    onSave: handleSave,
-    delay: 2000,
-    showToast: false
-  });
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto mb-4"></div>
-          <p className="text-purple-200">Loading your universe...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <AppHeader onSave={handleSave} saving={saving} />
-        
-        <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-9 bg-slate-800/50 border-purple-500/30">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-purple-600">Dashboard</TabsTrigger>
-            <TabsTrigger value="roster" className="data-[state=active]:bg-purple-600">Roster</TabsTrigger>
-            <TabsTrigger value="factions" className="data-[state=active]:bg-purple-600">Factions</TabsTrigger>
-            <TabsTrigger value="championships" className="data-[state=active]:bg-purple-600">Championships</TabsTrigger>
-            <TabsTrigger value="booking" className="data-[state=active]:bg-purple-600">Show Booking</TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-purple-600">Calendar</TabsTrigger>
-            <TabsTrigger value="rivalries" className="data-[state=active]:bg-purple-600">Rivalries</TabsTrigger>
-            <TabsTrigger value="storylines" className="data-[state=active]:bg-purple-600">Storylines</TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-purple-600">Settings</TabsTrigger>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <div className="container mx-auto p-6">
+        <header className="mb-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2">
+                Wrestling 2K25 Universe Manager
+              </h1>
+              <p className="text-purple-200">Complete control over your wrestling universe</p>
+            </div>
+            <div className="flex gap-3">
+              <Button onClick={handleExportData} variant="outline" className="border-purple-500 text-purple-300 hover:bg-purple-500/20">
+                <Download className="w-4 h-4 mr-2" />
+                Export Universe
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-8 mb-8 bg-slate-800/50 border border-purple-500/30">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-purple-600">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="roster" className="data-[state=active]:bg-purple-600">
+              <Users className="w-4 h-4 mr-2" />
+              Roster
+            </TabsTrigger>
+            <TabsTrigger value="championships" className="data-[state=active]:bg-purple-600">
+              <Trophy className="w-4 h-4 mr-2" />
+              Titles
+            </TabsTrigger>
+            <TabsTrigger value="booking" className="data-[state=active]:bg-purple-600">
+              <Calendar className="w-4 h-4 mr-2" />
+              Booking
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-purple-600">
+              <Calendar className="w-4 h-4 mr-2" />
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger value="rivalries" className="data-[state=active]:bg-purple-600">
+              <Zap className="w-4 h-4 mr-2" />
+              Rivalries
+            </TabsTrigger>
+            <TabsTrigger value="storylines" className="data-[state=active]:bg-purple-600">
+              <BookOpen className="w-4 h-4 mr-2" />
+              Storylines
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="data-[state=active]:bg-purple-600">
+              <SettingsIcon className="w-4 h-4 mr-2" />
+              Settings
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
@@ -82,10 +106,6 @@ const Index = () => {
 
           <TabsContent value="roster">
             <RosterManager />
-          </TabsContent>
-
-          <TabsContent value="factions">
-            <Factions />
           </TabsContent>
 
           <TabsContent value="championships">
