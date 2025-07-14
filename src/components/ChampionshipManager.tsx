@@ -53,53 +53,8 @@ export const ChampionshipManager = () => {
     if (savedChampionships) {
       setChampionships(JSON.parse(savedChampionships));
     } else {
-      // Initialize with default championships
-      const defaultChampionships: Championship[] = [
-        {
-          id: "1",
-          name: "WWE Championship",
-          brand: "Raw",
-          history: [],
-          retired: false
-        },
-        {
-          id: "2",
-          name: "Universal Championship",
-          brand: "SmackDown",
-          history: [],
-          retired: false
-        },
-        {
-          id: "3",
-          name: "Intercontinental Championship",
-          brand: "Raw",
-          history: [],
-          retired: false
-        },
-        {
-          id: "4",
-          name: "United States Championship",
-          brand: "SmackDown",
-          history: [],
-          retired: false
-        },
-        {
-          id: "5",
-          name: "Raw Women's Championship",
-          brand: "Raw",
-          history: [],
-          retired: false
-        },
-        {
-          id: "6",
-          name: "SmackDown Women's Championship",
-          brand: "SmackDown",
-          history: [],
-          retired: false
-        }
-      ];
-      setChampionships(defaultChampionships);
-      localStorage.setItem("championships", JSON.stringify(defaultChampionships));
+      // Start with empty championships
+      setChampionships([]);
     }
 
     if (savedWrestlers) {
