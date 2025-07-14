@@ -37,7 +37,7 @@ export const ChampionshipManager = () => {
 
   const [newChampionship, setNewChampionship] = useState({
     name: "",
-    brand: "Raw",
+    brand: "",
   });
 
   const [newChampion, setNewChampion] = useState({
@@ -88,7 +88,7 @@ export const ChampionshipManager = () => {
     const updatedChampionships = [...championships, championship];
     saveChampionships(updatedChampionships);
     
-    setNewChampionship({ name: "", brand: "Raw" });
+    setNewChampionship({ name: "", brand: "" });
     setIsAddDialogOpen(false);
     
     toast({
