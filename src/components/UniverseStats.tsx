@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Trophy, Users, Calendar, Zap, Star, Shield, Clock, Edit } from "lucide-react";
+import { Trophy, Users, Calendar, Zap, Star, Shield, Clock, Edit, UserX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface UniverseData {
   totalWrestlers: number;
+  freeAgents: number;
   activeChampionships: number;
   upcomingShows: number;
   activeRivalries: number;
@@ -22,6 +23,7 @@ interface UniverseData {
 export const UniverseStats = () => {
   const [stats, setStats] = useState<UniverseData>({
     totalWrestlers: 0,
+    freeAgents: 0,
     activeChampionships: 0,
     upcomingShows: 0,
     activeRivalries: 0,
@@ -134,8 +136,12 @@ export const UniverseStats = () => {
       })
       .sort((a, b) => b.reignLength - a.reignLength); // Sort by longest reign first
 
+    // Calculate free agents
+    const freeAgentsCount = wrestlers.filter((w: any) => w.brand === "Free Agent").length;
+
     setStats({
       totalWrestlers: wrestlers.length,
+      freeAgents: freeAgentsCount,
       activeChampionships: championships.filter((c: any) => c.currentChampion && !c.retired).length,
       upcomingShows: upcomingShowsCount.size,
       activeRivalries: rivalries.filter((r: any) => r.status === "active").length,
@@ -151,6 +157,12 @@ export const UniverseStats = () => {
       value: stats.totalWrestlers,
       icon: Users,
       color: "from-blue-500 to-cyan-500"
+    },
+    {
+      title: "Free Agents",
+      value: stats.freeAgents,
+      icon: UserX,
+      color: "from-gray-500 to-slate-500"
     },
     {
       title: "Active Championships",
@@ -259,7 +271,7 @@ export const UniverseStats = () => {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
         {statCards.map((stat, index) => (
           <Card key={index} className="bg-slate-800/50 border-purple-500/30 hover:border-purple-400/50 transition-colors">
             <CardContent className="p-6">
