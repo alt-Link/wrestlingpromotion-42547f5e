@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Trophy, Plus, Crown, Calendar, User } from "lucide-react";
+import { Trophy, Plus, Crown, Calendar, User, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Championship {
@@ -199,6 +199,41 @@ export const ChampionshipManager = () => {
     });
   };
 
+  const deleteHistoryEntry = (championshipId: string, historyIndex: number) => {
+    const updatedChampionships = championships.map(championship => {
+      if (championship.id === championshipId) {
+        const updatedHistory = [...championship.history];
+        const deletedEntry = updatedHistory.splice(historyIndex, 1)[0];
+        
+        // If we deleted the most recent entry and it was the current champion, update current champion
+        let updatedChampionship = { ...championship, history: updatedHistory };
+        if (historyIndex === championship.history.length - 1 && championship.currentChampion === deletedEntry.champion) {
+          // Find the new current champion (last entry in history)
+          const newCurrentEntry = updatedHistory[updatedHistory.length - 1];
+          if (newCurrentEntry && !newCurrentEntry.end) {
+            updatedChampionship.currentChampion = newCurrentEntry.champion;
+            updatedChampionship.reignStart = newCurrentEntry.start;
+          } else {
+            // No current champion
+            updatedChampionship.currentChampion = undefined;
+            updatedChampionship.reignStart = undefined;
+            updatedChampionship.reignLength = undefined;
+          }
+        }
+        
+        return updatedChampionship;
+      }
+      return championship;
+    });
+
+    saveChampionships(updatedChampionships);
+    
+    toast({
+      title: "History Entry Deleted",
+      description: "The championship history entry has been removed."
+    });
+  };
+
   const getBrandColor = (brand: string) => {
     switch (brand) {
       case "Raw": return "bg-red-500";
@@ -329,17 +364,34 @@ export const ChampionshipManager = () => {
                 <div>
                   <h4 className="text-purple-200 font-medium mb-2">Recent History</h4>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {championship.history.slice(-3).reverse().map((reign, index) => (
-                      <div key={index} className="bg-slate-700/30 p-2 rounded text-sm">
-                        <div className="flex justify-between items-center">
-                          <span className="text-white font-medium">{reign.champion}</span>
-                          <span className="text-purple-200">{reign.days} days</span>
+                    {championship.history.slice(-3).reverse().map((reign, displayIndex) => {
+                      const actualIndex = championship.history.length - 1 - displayIndex;
+                      return (
+                        <div key={displayIndex} className="bg-slate-700/30 p-2 rounded text-sm">
+                          <div className="flex justify-between items-center">
+                            <div className="flex-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-white font-medium">{reign.champion}</span>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-purple-200">{reign.days} days</span>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-red-400 hover:bg-red-500/20 h-6 w-6 p-0"
+                                    onClick={() => deleteHistoryEntry(championship.id, actualIndex)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <div className="text-gray-400 text-xs">
+                                {reign.start} {reign.end && `- ${reign.end}`} • {reign.event}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-gray-400 text-xs">
-                          {reign.start} {reign.end && `- ${reign.end}`} • {reign.event}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
