@@ -1,7 +1,13 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trophy, Users, Calendar, Zap, Star, Shield, Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Trophy, Users, Calendar, Zap, Star, Shield, Clock, Edit } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface UniverseData {
   totalWrestlers: number;
@@ -23,6 +29,15 @@ export const UniverseStats = () => {
     upcomingMatches: [],
     currentChampions: []
   });
+  
+  const [isEditOutcomeDialogOpen, setIsEditOutcomeDialogOpen] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [matchOutcome, setMatchOutcome] = useState({
+    result: "",
+    notes: ""
+  });
+  
+  const { toast } = useToast();
 
   useEffect(() => {
     // Load stats from localStorage
@@ -183,6 +198,65 @@ export const UniverseStats = () => {
     }
   };
 
+  const openEditOutcomeDialog = (match: any) => {
+    setSelectedMatch(match);
+    setMatchOutcome({
+      result: match.result || "",
+      notes: match.notes || ""
+    });
+    setIsEditOutcomeDialogOpen(true);
+  };
+
+  const saveMatchOutcome = () => {
+    if (!selectedMatch) return;
+    
+    const shows = JSON.parse(localStorage.getItem("shows") || "[]");
+    const updatedShows = shows.map((show: any) => {
+      if (show.matches && show.matches.length > 0) {
+        const updatedMatches = show.matches.map((match: any) => {
+          if (match.id === selectedMatch.id) {
+            return {
+              ...match,
+              result: matchOutcome.result,
+              notes: matchOutcome.notes
+            };
+          }
+          return match;
+        });
+        return { ...show, matches: updatedMatches };
+      }
+      return show;
+    });
+    
+    localStorage.setItem("shows", JSON.stringify(updatedShows));
+    
+    // Update the local state
+    const updatedUpcomingMatches = stats.upcomingMatches.map((match: any) => {
+      if (match.id === selectedMatch.id) {
+        return {
+          ...match,
+          result: matchOutcome.result,
+          notes: matchOutcome.notes
+        };
+      }
+      return match;
+    });
+    
+    setStats(prev => ({
+      ...prev,
+      upcomingMatches: updatedUpcomingMatches
+    }));
+    
+    setIsEditOutcomeDialogOpen(false);
+    setSelectedMatch(null);
+    setMatchOutcome({ result: "", notes: "" });
+    
+    toast({
+      title: "Match Outcome Updated",
+      description: "The match result has been saved successfully."
+    });
+  };
+
   return (
     <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
@@ -223,17 +297,33 @@ export const UniverseStats = () => {
                         {match.championship && (
                           <p className="text-sm text-yellow-400">Championship: {match.championship}</p>
                         )}
+                        {match.result && (
+                          <p className="text-sm text-green-400">Result: {match.result}</p>
+                        )}
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-purple-300">{match.showName}</p>
-                        <p className="text-xs text-purple-400">
-                          <Clock className="w-3 h-3 inline mr-1" />
-                          {new Date(match.showDate).toLocaleDateString()}
-                        </p>
+                      <div className="flex items-start justify-between">
+                        <div className="text-right mr-3">
+                          <p className="text-sm text-purple-300">{match.showName}</p>
+                          <p className="text-xs text-purple-400">
+                            <Clock className="w-3 h-3 inline mr-1" />
+                            {new Date(match.showDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-blue-400 hover:bg-blue-500/20 h-8 w-8 p-0"
+                          onClick={() => openEditOutcomeDialog(match)}
+                        >
+                          <Edit className="w-3 h-3" />
+                        </Button>
                       </div>
                     </div>
                     {match.stipulation && (
                       <p className="text-xs text-orange-400">Stipulation: {match.stipulation}</p>
+                    )}
+                    {match.notes && (
+                      <p className="text-xs text-slate-400">Notes: {match.notes}</p>
                     )}
                   </div>
                 ))
@@ -291,6 +381,68 @@ export const UniverseStats = () => {
           </CardContent>
         </Card>
       </div>
+      
+      {/* Edit Outcome Dialog */}
+      <Dialog open={isEditOutcomeDialogOpen} onOpenChange={setIsEditOutcomeDialogOpen}>
+        <DialogContent className="bg-slate-800 border-purple-500/30">
+          <DialogHeader>
+            <DialogTitle className="text-white">
+              Edit Match Outcome
+            </DialogTitle>
+          </DialogHeader>
+          {selectedMatch && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-white font-semibold mb-2">
+                  {selectedMatch.participants.join(" vs ")} - {selectedMatch.type}
+                </h3>
+                <p className="text-purple-200 text-sm">
+                  {selectedMatch.showName} - {new Date(selectedMatch.showDate).toLocaleDateString()}
+                </p>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-purple-200">Match Result</Label>
+                  <Input
+                    value={matchOutcome.result}
+                    onChange={(e) => setMatchOutcome({...matchOutcome, result: e.target.value})}
+                    placeholder="e.g., John Cena wins via pinfall"
+                    className="bg-slate-700 border-purple-500/30 text-white"
+                  />
+                </div>
+                
+                <div>
+                  <Label className="text-purple-200">Additional Notes</Label>
+                  <Textarea
+                    value={matchOutcome.notes}
+                    onChange={(e) => setMatchOutcome({...matchOutcome, notes: e.target.value})}
+                    placeholder="Any additional details about the match outcome..."
+                    className="bg-slate-700 border-purple-500/30 text-white"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsEditOutcomeDialogOpen(false)}
+                  className="text-purple-400 hover:bg-purple-500/20"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={saveMatchOutcome}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  Save Outcome
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
