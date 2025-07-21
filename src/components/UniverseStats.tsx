@@ -136,8 +136,10 @@ export const UniverseStats = () => {
       })
       .sort((a, b) => b.reignLength - a.reignLength); // Sort by longest reign first
 
-    // Calculate free agents
-    const freeAgentsCount = wrestlers.filter((w: any) => w.brand === "Free Agent").length;
+    // Get free agents from separate localStorage
+    const savedFreeAgents = localStorage.getItem("freeAgents");
+    const freeAgents = savedFreeAgents ? JSON.parse(savedFreeAgents) : [];
+    const freeAgentsCount = freeAgents.length;
 
     setStats({
       totalWrestlers: wrestlers.length,
