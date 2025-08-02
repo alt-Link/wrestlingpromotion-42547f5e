@@ -506,7 +506,7 @@ export const RivalryTracker = () => {
                       value={newTimelineEvent.result || ""}
                       onChange={(e) => setNewTimelineEvent({...newTimelineEvent, result: e.target.value})}
                       className="bg-slate-700 border-red-500/30 text-white"
-                      placeholder="e.g. John Cena wins"
+                      placeholder=""
                     />
                   </div>
                 </div>

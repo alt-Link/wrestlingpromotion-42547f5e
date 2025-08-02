@@ -60,6 +60,16 @@ const Index = () => {
                 <Download className="w-4 h-4 mr-2" />
                 Export Universe
               </Button>
+              <Button 
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.reload();
+                }}
+                variant="outline" 
+                className="border-red-500 text-red-300 hover:bg-red-500/20"
+              >
+                Logout
+              </Button>
             </div>
           </div>
         </header>

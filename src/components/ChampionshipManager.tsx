@@ -285,9 +285,6 @@ export const ChampionshipManager = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-slate-700 border-purple-500/30">
-                    <SelectItem value="Raw">Raw</SelectItem>
-                    <SelectItem value="SmackDown">SmackDown</SelectItem>
-                    <SelectItem value="NXT">NXT</SelectItem>
                     <SelectItem value="Cross-Brand">Cross-Brand</SelectItem>
                   </SelectContent>
                 </Select>
