@@ -55,9 +55,15 @@ export const RosterManager = () => {
     const savedFreeAgents = localStorage.getItem("freeAgents");
     if (savedWrestlers) {
       setWrestlers(JSON.parse(savedWrestlers));
+    } else {
+      // Start with empty roster
+      setWrestlers([]);
     }
     if (savedFreeAgents) {
       setFreeAgents(JSON.parse(savedFreeAgents));
+    } else {
+      // Start with empty free agents
+      setFreeAgents([]);
     }
   }, []);
 
@@ -86,6 +92,7 @@ export const RosterManager = () => {
       return;
     }
 
+    // Simply update the wrestler without moving to free agents when on break
     const updatedWrestlers = wrestlers.map(w => 
       w.id === editingWrestler.id ? editingWrestler : w
     );

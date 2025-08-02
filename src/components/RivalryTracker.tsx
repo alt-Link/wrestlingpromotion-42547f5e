@@ -69,11 +69,17 @@ export const RivalryTracker = () => {
         })) || []
       }));
       setRivalries(rivalriesWithDates);
+    } else {
+      // Start with empty rivalries
+      setRivalries([]);
     }
 
     const savedWrestlers = localStorage.getItem("wrestlers");
     if (savedWrestlers) {
       setWrestlers(JSON.parse(savedWrestlers));
+    } else {
+      // Start with empty wrestlers list
+      setWrestlers([]);
     }
   }, []);
 

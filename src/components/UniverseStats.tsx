@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 interface UniverseData {
   totalWrestlers: number;
   freeAgents: number;
+  injuredWrestlers: number;
+  wrestlersOnBreak: number;
   activeChampionships: number;
   upcomingShows: number;
   activeRivalries: number;
@@ -24,6 +26,8 @@ export const UniverseStats = () => {
   const [stats, setStats] = useState<UniverseData>({
     totalWrestlers: 0,
     freeAgents: 0,
+    injuredWrestlers: 0,
+    wrestlersOnBreak: 0,
     activeChampionships: 0,
     upcomingShows: 0,
     activeRivalries: 0,
@@ -141,9 +145,15 @@ export const UniverseStats = () => {
     const freeAgents = savedFreeAgents ? JSON.parse(savedFreeAgents) : [];
     const freeAgentsCount = freeAgents.length;
 
+    // Calculate injured and break wrestlers
+    const injuredWrestlers = wrestlers.filter((w: any) => w.injured).length;
+    const wrestlersOnBreak = wrestlers.filter((w: any) => w.break).length;
+
     setStats({
       totalWrestlers: wrestlers.length,
       freeAgents: freeAgentsCount,
+      injuredWrestlers,
+      wrestlersOnBreak,
       activeChampionships: championships.filter((c: any) => c.currentChampion && !c.retired).length,
       upcomingShows: upcomingShowsCount.size,
       activeRivalries: rivalries.filter((r: any) => r.status === "active").length,
@@ -165,6 +175,18 @@ export const UniverseStats = () => {
       value: stats.freeAgents,
       icon: UserX,
       color: "from-gray-500 to-slate-500"
+    },
+    {
+      title: "Injured Wrestlers",
+      value: stats.injuredWrestlers,
+      icon: Shield,
+      color: "from-red-500 to-pink-500"
+    },
+    {
+      title: "Wrestlers on Break",
+      value: stats.wrestlersOnBreak,
+      icon: Clock,
+      color: "from-orange-500 to-yellow-500"
     },
     {
       title: "Active Championships",
@@ -273,7 +295,7 @@ export const UniverseStats = () => {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-6">
         {statCards.map((stat, index) => (
           <Card key={index} className="bg-slate-800/50 border-purple-500/30 hover:border-purple-400/50 transition-colors">
             <CardContent className="p-6">

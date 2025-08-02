@@ -27,6 +27,9 @@ export const ShowBooking = () => {
         isTemplate: show.isTemplate !== undefined ? show.isTemplate : (show.frequency !== 'one-time')
       }));
       setShows(showsWithDates);
+    } else {
+      // Start with empty shows
+      setShows([]);
     }
   }, []);
 
