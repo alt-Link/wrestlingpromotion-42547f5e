@@ -22,7 +22,7 @@ interface AddShowDialogProps {
 export const AddShowDialog = ({ isOpen, onOpenChange, onAddShow }: AddShowDialogProps) => {
   const [newShow, setNewShow] = useState<Partial<Show>>({
     name: "",
-    brand: "Raw",
+    brand: "",
     frequency: "weekly",
     venue: "",
     description: "",
@@ -69,7 +69,7 @@ export const AddShowDialog = ({ isOpen, onOpenChange, onAddShow }: AddShowDialog
     localStorage.removeItem("draftShow"); // Clear draft after successful creation
     setNewShow({
       name: "",
-      brand: "Raw",
+      brand: "",
       frequency: "weekly",
       venue: "",
       description: "",
@@ -97,18 +97,12 @@ export const AddShowDialog = ({ isOpen, onOpenChange, onAddShow }: AddShowDialog
             </div>
             <div>
               <Label className="text-blue-200">Brand</Label>
-              <Select value={newShow.brand} onValueChange={(value) => setNewShow({...newShow, brand: value})}>
-                <SelectTrigger className="bg-slate-700 border-blue-500/30 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-700 border-blue-500/30">
-                  <SelectItem value="Raw">Raw</SelectItem>
-                  <SelectItem value="SmackDown">SmackDown</SelectItem>
-                  <SelectItem value="NXT">NXT</SelectItem>
-                  <SelectItem value="PPV">Pay-Per-View</SelectItem>
-                  <SelectItem value="Special">Special Event</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                value={newShow.brand || ""}
+                onChange={(e) => setNewShow({...newShow, brand: e.target.value})}
+                className="bg-slate-700 border-blue-500/30 text-white"
+                placeholder="Enter brand name (e.g. Raw, SmackDown, NXT)"
+              />
             </div>
           </div>
 

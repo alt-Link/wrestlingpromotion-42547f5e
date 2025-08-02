@@ -210,14 +210,19 @@ export const CalendarView = () => {
   };
 
   const getBrandColor = (brand: string) => {
-    switch (brand) {
-      case "Raw": return "bg-red-600";
-      case "SmackDown": return "bg-blue-600";
-      case "NXT": return "bg-yellow-600";
-      case "PPV": return "bg-orange-600";
-      case "Special": return "bg-green-600";
-      default: return "bg-gray-600";
+    // Generate consistent colors based on brand name hash
+    const colors = [
+      "bg-red-600", "bg-blue-600", "bg-yellow-600", "bg-green-600", 
+      "bg-purple-600", "bg-pink-600", "bg-indigo-600", "bg-orange-600",
+      "bg-teal-600", "bg-cyan-600"
+    ];
+    
+    let hash = 0;
+    for (let i = 0; i < brand.length; i++) {
+      hash = brand.charCodeAt(i) + ((hash << 5) - hash);
     }
+    
+    return colors[Math.abs(hash) % colors.length];
   };
 
   const getShowsForDate = (day: number) => {
@@ -627,30 +632,24 @@ export const CalendarView = () => {
           </div>
           
           <div className="mt-6 flex space-x-4 flex-wrap">
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-red-600 rounded"></div>
-              <span className="text-purple-200 text-sm">Raw</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-blue-600 rounded"></div>
-              <span className="text-purple-200 text-sm">SmackDown</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-yellow-600 rounded"></div>
-              <span className="text-purple-200 text-sm">NXT</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-orange-600 rounded"></div>
-              <span className="text-purple-200 text-sm">Pay-Per-View</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-3 h-3 bg-green-600 rounded"></div>
-              <span className="text-purple-200 text-sm">Special Event</span>
-            </div>
+            {/* Dynamic brand legend based on created shows */}
+            {Array.from(new Set(shows.map(show => show.brand)))
+              .filter(brand => brand) // Remove empty brands
+              .map(brand => (
+                <div key={brand} className="flex items-center space-x-2">
+                  <div className={`w-3 h-3 rounded ${getBrandColor(brand).replace('bg-', 'bg-')}`}></div>
+                  <span className="text-purple-200 text-sm">{brand}</span>
+                </div>
+              ))
+            }
+            
+            {/* Today indicator */}
             <div className="flex items-center space-x-2">
               <div className="w-3 h-3 bg-purple-600 rounded"></div>
               <span className="text-purple-200 text-sm">Today</span>
             </div>
+            
+            {/* Template indicator */}
             <div className="flex items-center space-x-2">
               <span className="text-purple-200 text-sm">📅 = Recurring Show Template</span>
             </div>

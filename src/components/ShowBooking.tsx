@@ -51,7 +51,7 @@ export const ShowBooking = () => {
     const show: Show = {
       id: Date.now().toString(),
       name: newShowData.name!,
-      brand: newShowData.brand || "Raw",
+      brand: newShowData.brand || "",
       date: newShowData.date,
       frequency: newShowData.frequency || "weekly",
       venue: newShowData.venue || "",
@@ -130,13 +130,19 @@ export const ShowBooking = () => {
   };
 
   const getBrandColor = (brand: string) => {
-    switch (brand) {
-      case "Raw": return "bg-red-500";
-      case "SmackDown": return "bg-blue-500";
-      case "NXT": return "bg-yellow-500";
-      case "Legends": return "bg-purple-500";
-      default: return "bg-gray-500";
+    // Generate consistent colors based on brand name hash
+    const colors = [
+      "bg-red-500", "bg-blue-500", "bg-yellow-500", "bg-green-500", 
+      "bg-purple-500", "bg-pink-500", "bg-indigo-500", "bg-orange-500",
+      "bg-teal-500", "bg-cyan-500"
+    ];
+    
+    let hash = 0;
+    for (let i = 0; i < brand.length; i++) {
+      hash = brand.charCodeAt(i) + ((hash << 5) - hash);
     }
+    
+    return colors[Math.abs(hash) % colors.length];
   };
 
   const displayShows = shows.filter(show => show.isTemplate);

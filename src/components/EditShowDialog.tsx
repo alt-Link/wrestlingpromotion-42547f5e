@@ -48,18 +48,12 @@ export const EditShowDialog = ({
             </div>
             <div>
               <Label className="text-blue-200">Brand</Label>
-              <Select value={editingShow.brand} onValueChange={(value) => onEditShow({...editingShow, brand: value})}>
-                <SelectTrigger className="bg-slate-700 border-blue-500/30 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-slate-700 border-blue-500/30">
-                  <SelectItem value="Raw">Raw</SelectItem>
-                  <SelectItem value="SmackDown">SmackDown</SelectItem>
-                  <SelectItem value="NXT">NXT</SelectItem>
-                  <SelectItem value="PPV">Pay-Per-View</SelectItem>
-                  <SelectItem value="Special">Special Event</SelectItem>
-                </SelectContent>
-              </Select>
+              <Input
+                value={editingShow.brand || ""}
+                onChange={(e) => onEditShow({...editingShow, brand: e.target.value})}
+                className="bg-slate-700 border-blue-500/30 text-white"
+                placeholder="Enter brand name (e.g. Raw, SmackDown, NXT)"
+              />
             </div>
           </div>
 

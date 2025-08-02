@@ -27,6 +27,7 @@ interface Wrestler {
 export const RosterManager = () => {
   const [wrestlers, setWrestlers] = useState<Wrestler[]>([]);
   const [freeAgents, setFreeAgents] = useState<Wrestler[]>([]);
+  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterBrand, setFilterBrand] = useState("all");
   const [filterAlignment, setFilterAlignment] = useState("all");
@@ -41,7 +42,7 @@ export const RosterManager = () => {
 
   const [newWrestler, setNewWrestler] = useState<Partial<Wrestler>>({
     name: "",
-    brand: "Raw",
+    brand: "Free Agent",
     alignment: "Face",
     gender: "Male",
     titles: [],
@@ -53,6 +54,8 @@ export const RosterManager = () => {
   useEffect(() => {
     const savedWrestlers = localStorage.getItem("wrestlers");
     const savedFreeAgents = localStorage.getItem("freeAgents");
+    const savedShows = localStorage.getItem("shows");
+    
     if (savedWrestlers) {
       setWrestlers(JSON.parse(savedWrestlers));
     } else {
@@ -64,6 +67,15 @@ export const RosterManager = () => {
     } else {
       // Start with empty free agents
       setFreeAgents([]);
+    }
+
+    // Get available brands from shows
+    if (savedShows) {
+      const shows = JSON.parse(savedShows);
+      const brands = Array.from(new Set(shows.map((show: any) => show.brand).filter((brand: string) => brand && brand.trim()))) as string[];
+      setAvailableBrands(brands);
+    } else {
+      setAvailableBrands([]);
     }
   }, []);
 
@@ -158,7 +170,7 @@ export const RosterManager = () => {
     const wrestler: Wrestler = {
       id: Date.now().toString(),
       name: newWrestler.name!,
-      brand: newWrestler.brand || "Raw",
+      brand: newWrestler.brand || "Free Agent",
       alignment: newWrestler.alignment || "Face",
       gender: newWrestler.gender || "Male",
       titles: newWrestler.titles || [],
@@ -174,7 +186,7 @@ export const RosterManager = () => {
     
     setNewWrestler({
       name: "",
-      brand: "Raw",
+      brand: "Free Agent",
       alignment: "Face",
       gender: "Male",
       titles: [],
@@ -379,11 +391,10 @@ export const RosterManager = () => {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-700 border-purple-500/30">
-                        <SelectItem value="Raw">Raw</SelectItem>
-                        <SelectItem value="SmackDown">SmackDown</SelectItem>
-                        <SelectItem value="NXT">NXT</SelectItem>
-                        <SelectItem value="Legends">Legends</SelectItem>
                         <SelectItem value="Free Agent">Free Agent</SelectItem>
+                        {availableBrands.map(brand => (
+                          <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -466,11 +477,10 @@ export const RosterManager = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-slate-700 border-purple-500/30">
-                      <SelectItem value="Raw">Raw</SelectItem>
-                      <SelectItem value="SmackDown">SmackDown</SelectItem>
-                      <SelectItem value="NXT">NXT</SelectItem>
-                      <SelectItem value="Legends">Legends</SelectItem>
                       <SelectItem value="Free Agent">Free Agent</SelectItem>
+                      {availableBrands.map(brand => (
+                        <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -570,30 +580,21 @@ export const RosterManager = () => {
                 Sign <span className="font-bold text-white">{selectedFreeAgent.name}</span> to which brand?
               </p>
               <div className="grid grid-cols-2 gap-3">
-                <Button 
-                  onClick={() => signFreeAgent(selectedFreeAgent, "Raw")} 
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  Raw
-                </Button>
-                <Button 
-                  onClick={() => signFreeAgent(selectedFreeAgent, "SmackDown")} 
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  SmackDown
-                </Button>
-                <Button 
-                  onClick={() => signFreeAgent(selectedFreeAgent, "NXT")} 
-                  className="bg-yellow-600 hover:bg-yellow-700"
-                >
-                  NXT
-                </Button>
-                <Button 
-                  onClick={() => signFreeAgent(selectedFreeAgent, "Legends")} 
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  Legends
-                </Button>
+                {availableBrands.length > 0 ? (
+                  availableBrands.map(brand => (
+                    <Button 
+                      key={brand}
+                      onClick={() => signFreeAgent(selectedFreeAgent, brand)} 
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {brand}
+                    </Button>
+                  ))
+                ) : (
+                  <div className="col-span-2 text-center text-purple-200">
+                    No brands available. Create shows first to establish brands.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -617,11 +618,10 @@ export const RosterManager = () => {
           </SelectTrigger>
           <SelectContent className="bg-slate-700 border-purple-500/30">
             <SelectItem value="all">All Brands</SelectItem>
-            <SelectItem value="Raw">Raw</SelectItem>
-            <SelectItem value="SmackDown">SmackDown</SelectItem>
-            <SelectItem value="NXT">NXT</SelectItem>
-            <SelectItem value="Legends">Legends</SelectItem>
             <SelectItem value="Free Agent">Free Agent</SelectItem>
+            {availableBrands.map(brand => (
+              <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
         <Select value={filterAlignment} onValueChange={setFilterAlignment}>
