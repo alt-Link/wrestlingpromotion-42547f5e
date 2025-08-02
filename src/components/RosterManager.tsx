@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Search, Users, Edit, Trash2, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAutoSave } from "@/hooks/useAutoSave";
 
 interface Wrestler {
   id: string;
@@ -39,6 +40,17 @@ export const RosterManager = () => {
   const [selectedFreeAgent, setSelectedFreeAgent] = useState<Wrestler | null>(null);
   const [showFreeAgents, setShowFreeAgents] = useState(false);
   const { toast } = useToast();
+
+  // Auto-save hooks
+  const autoSaveWrestlers = useAutoSave({
+    onSave: () => localStorage.setItem("wrestlers", JSON.stringify(wrestlers)),
+    showToast: false
+  });
+
+  const autoSaveFreeAgents = useAutoSave({
+    onSave: () => localStorage.setItem("freeAgents", JSON.stringify(freeAgents)),
+    showToast: false
+  });
 
   const [newWrestler, setNewWrestler] = useState<Partial<Wrestler>>({
     name: "",
@@ -78,6 +90,19 @@ export const RosterManager = () => {
       setAvailableBrands([]);
     }
   }, []);
+
+  // Trigger auto-save when data changes
+  useEffect(() => {
+    if (wrestlers.length > 0) {
+      autoSaveWrestlers();
+    }
+  }, [wrestlers, autoSaveWrestlers]);
+
+  useEffect(() => {
+    if (freeAgents.length > 0) {
+      autoSaveFreeAgents();
+    }
+  }, [freeAgents, autoSaveFreeAgents]);
 
   const saveWrestlers = (updatedWrestlers: Wrestler[]) => {
     setWrestlers(updatedWrestlers);

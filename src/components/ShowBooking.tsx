@@ -1,6 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useAutoSave } from "@/hooks/useAutoSave";
 import { Show } from "@/types/show";
 import { ShowBookingHeader } from "./ShowBookingHeader";
 import { AddShowDialog } from "./AddShowDialog";
@@ -14,6 +15,12 @@ export const ShowBooking = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingShow, setEditingShow] = useState<Show | null>(null);
   const { toast } = useToast();
+
+  // Auto-save hook
+  const autoSaveShows = useAutoSave({
+    onSave: () => localStorage.setItem("shows", JSON.stringify(shows)),
+    showToast: false
+  });
 
   useEffect(() => {
     const savedShows = localStorage.getItem("shows");
@@ -32,6 +39,13 @@ export const ShowBooking = () => {
       setShows([]);
     }
   }, []);
+
+  // Trigger auto-save when shows data changes
+  useEffect(() => {
+    if (shows.length > 0) {
+      autoSaveShows();
+    }
+  }, [shows, autoSaveShows]);
 
   const saveShows = (updatedShows: Show[]) => {
     setShows(updatedShows);
