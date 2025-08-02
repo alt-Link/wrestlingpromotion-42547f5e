@@ -93,15 +93,11 @@ export const RosterManager = () => {
 
   // Trigger auto-save when data changes
   useEffect(() => {
-    if (wrestlers.length > 0) {
-      autoSaveWrestlers();
-    }
+    autoSaveWrestlers();
   }, [wrestlers, autoSaveWrestlers]);
 
   useEffect(() => {
-    if (freeAgents.length > 0) {
-      autoSaveFreeAgents();
-    }
+    autoSaveFreeAgents();
   }, [freeAgents, autoSaveFreeAgents]);
 
   const saveWrestlers = (updatedWrestlers: Wrestler[]) => {

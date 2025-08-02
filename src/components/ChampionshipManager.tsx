@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Trophy, Plus, Crown, Calendar, User, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAutoSave } from "@/hooks/useAutoSave";
 
 interface Championship {
   id: string;
@@ -33,7 +34,14 @@ export const ChampionshipManager = () => {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedChampionship, setSelectedChampionship] = useState<Championship | null>(null);
   const [wrestlers, setWrestlers] = useState<any[]>([]);
+  const [availableBrands, setAvailableBrands] = useState<string[]>([]);
   const { toast } = useToast();
+
+  // Auto-save hook
+  const autoSaveChampionships = useAutoSave({
+    onSave: () => localStorage.setItem("championships", JSON.stringify(championships)),
+    showToast: false
+  });
 
   const [newChampionship, setNewChampionship] = useState({
     name: "",
@@ -49,6 +57,7 @@ export const ChampionshipManager = () => {
   useEffect(() => {
     const savedChampionships = localStorage.getItem("championships");
     const savedWrestlers = localStorage.getItem("wrestlers");
+    const savedShows = localStorage.getItem("shows");
     
     if (savedChampionships) {
       setChampionships(JSON.parse(savedChampionships));
@@ -60,7 +69,21 @@ export const ChampionshipManager = () => {
     if (savedWrestlers) {
       setWrestlers(JSON.parse(savedWrestlers));
     }
+
+    // Get available brands from shows
+    if (savedShows) {
+      const shows = JSON.parse(savedShows);
+      const brands = Array.from(new Set(shows.map((show: any) => show.brand).filter((brand: string) => brand && brand.trim()))) as string[];
+      setAvailableBrands(brands);
+    } else {
+      setAvailableBrands([]);
+    }
   }, []);
+
+  // Trigger auto-save when championships change
+  useEffect(() => {
+    autoSaveChampionships();
+  }, [championships, autoSaveChampionships]);
 
   const saveChampionships = (updatedChampionships: Championship[]) => {
     setChampionships(updatedChampionships);
@@ -286,6 +309,9 @@ export const ChampionshipManager = () => {
                   </SelectTrigger>
                   <SelectContent className="bg-slate-700 border-purple-500/30">
                     <SelectItem value="Cross-Brand">Cross-Brand</SelectItem>
+                    {availableBrands.map(brand => (
+                      <SelectItem key={brand} value={brand}>{brand}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
