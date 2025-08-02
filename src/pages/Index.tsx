@@ -61,9 +61,9 @@ const Index = () => {
                 Export Universe
               </Button>
               <Button 
-                onClick={() => {
-                  localStorage.clear();
-                  window.location.reload();
+                onClick={async () => {
+                  const { supabase } = await import('@/integrations/supabase/client');
+                  await supabase.auth.signOut();
                 }}
                 variant="outline" 
                 className="border-red-500 text-red-300 hover:bg-red-500/20"
