@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { supabase } from '@/integrations/supabase/client';
 import { Session } from '@supabase/supabase-js';
-import { Auth } from '@/components/Auth';
+import Auth from '@/pages/Auth';
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
