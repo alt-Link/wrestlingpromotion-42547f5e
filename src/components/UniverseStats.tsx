@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Trophy, Users, Calendar, Zap, Star, Shield, Clock, Edit, UserX } from "lucide-react";
+import { MiniCalendar } from "./MiniCalendar";
 import { useToast } from "@/hooks/use-toast";
 
 interface UniverseData {
@@ -221,22 +222,10 @@ export const UniverseStats = () => {
       color: "from-yellow-500 to-orange-500"
     },
     {
-      title: "Upcoming Shows",
-      value: stats.upcomingShows,
-      icon: Calendar,
-      color: "from-green-500 to-emerald-500"
-    },
-    {
       title: "Active Rivalries",
       value: stats.activeRivalries,
       icon: Zap,
       color: "from-red-500 to-pink-500"
-    },
-    {
-      title: "Total Matches Booked",
-      value: stats.totalMatches,
-      icon: Star,
-      color: "from-purple-500 to-violet-500"
     }
   ];
 
@@ -321,7 +310,7 @@ export const UniverseStats = () => {
 
   return (
     <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
         {statCards.map((stat, index) => (
           <Card key={index} className="bg-slate-800/50 border-purple-500/30 hover:border-purple-400/50 transition-colors">
             <CardContent className="p-6">
@@ -340,65 +329,7 @@ export const UniverseStats = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-slate-800/50 border-purple-500/30">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-purple-400" />
-              Upcoming Matches
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats.upcomingMatches.length > 0 ? (
-                stats.upcomingMatches.map((match, index) => (
-                  <div key={index} className={`p-3 rounded-lg border ${getBrandColor(match.showBrand)}`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-white">{match.participants.join(" vs ")}</h4>
-                        <p className="text-sm text-purple-200">{match.type}</p>
-                        {match.championship && (
-                          <p className="text-sm text-yellow-400">Championship: {match.championship}</p>
-                        )}
-                        {match.result && (
-                          <p className="text-sm text-green-400">Result: {match.result}</p>
-                        )}
-                      </div>
-                      <div className="flex items-start justify-between">
-                        <div className="text-right mr-3">
-                          <p className="text-sm text-purple-300">{match.showName}</p>
-                          <p className="text-xs text-purple-400">
-                            <Clock className="w-3 h-3 inline mr-1" />
-                            {new Date(match.showDate).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="text-blue-400 hover:bg-blue-500/20 h-8 w-8 p-0"
-                          onClick={() => openEditOutcomeDialog(match)}
-                        >
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    {match.stipulation && (
-                      <p className="text-xs text-orange-400">Stipulation: {match.stipulation}</p>
-                    )}
-                    {match.notes && (
-                      <p className="text-xs text-slate-400">Notes: {match.notes}</p>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6">
-                  <Calendar className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-                  <p className="text-purple-200">No upcoming matches scheduled</p>
-                  <p className="text-sm text-purple-400">Book some shows to see upcoming matches here</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <MiniCalendar />
 
         <Card className="bg-slate-800/50 border-purple-500/30">
           <CardHeader>
