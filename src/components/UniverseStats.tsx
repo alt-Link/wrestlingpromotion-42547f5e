@@ -45,7 +45,7 @@ export const UniverseStats = () => {
   
   const { toast } = useToast();
 
-  useEffect(() => {
+  const loadStats = () => {
     // Load stats from localStorage
     const wrestlers = JSON.parse(localStorage.getItem("wrestlers") || "[]");
     const championships = JSON.parse(localStorage.getItem("championships") || "[]");
@@ -161,6 +161,32 @@ export const UniverseStats = () => {
       upcomingMatches: limitedUpcomingMatches,
       currentChampions
     });
+  };
+
+  useEffect(() => {
+    loadStats();
+    
+    // Listen for storage changes to refresh dashboard
+    const handleStorageChange = () => {
+      loadStats();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for localStorage changes within the same tab
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function(key, value) {
+      const result = originalSetItem.apply(this, arguments);
+      if (['wrestlers', 'freeAgents', 'shows', 'championships', 'rivalries'].includes(key)) {
+        setTimeout(loadStats, 100); // Small delay to ensure data is saved
+      }
+      return result;
+    };
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      localStorage.setItem = originalSetItem;
+    };
   }, []);
 
   const statCards = [

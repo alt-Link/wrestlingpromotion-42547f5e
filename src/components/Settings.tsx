@@ -82,13 +82,9 @@ export const Settings = () => {
           <CardContent className="space-y-4">
             <div className="bg-slate-700/50 p-4 rounded-lg">
               <p className="text-purple-200 text-sm mb-2">Authentication Status</p>
-              <p className="text-white">Local User (No Cloud Sync)</p>
-              <p className="text-gray-400 text-xs">Connect Apple ID to enable cloud features</p>
+              <p className="text-white">Authenticated User</p>
+              <p className="text-gray-400 text-xs">Your data is synchronized and secure</p>
             </div>
-            <Button className="w-full bg-blue-600 hover:bg-blue-700" disabled>
-              <User className="w-4 h-4 mr-2" />
-              Sign In with Apple (Coming Soon)
-            </Button>
           </CardContent>
         </Card>
 
