@@ -44,17 +44,19 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        {!session ? (
-          <Auth />
-        ) : (
-          <BrowserRouter>
+        <BrowserRouter>
+          {!session ? (
+            <Routes>
+              <Route path="*" element={<Auth />} />
+            </Routes>
+          ) : (
             <Routes>
               <Route path="/" element={<Index />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
-          </BrowserRouter>
-        )}
+          )}
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );
