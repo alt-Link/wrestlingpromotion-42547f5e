@@ -581,7 +581,7 @@ export const MiniCalendar = () => {
                 value={newShow.name}
                 onChange={(e) => setNewShow({...newShow, name: e.target.value})}
                 className="bg-slate-700 border-slate-600 text-white"
-                placeholder="e.g., Monday Night Raw"
+                placeholder="Enter show name"
               />
             </div>
             
@@ -591,7 +591,7 @@ export const MiniCalendar = () => {
                 value={newShow.brand}
                 onChange={(e) => setNewShow({...newShow, brand: e.target.value})}
                 className="bg-slate-700 border-slate-600 text-white"
-                placeholder="e.g., Raw, SmackDown, NXT"
+                placeholder="Enter brand name"
               />
             </div>
 
@@ -601,7 +601,7 @@ export const MiniCalendar = () => {
                 value={newShow.venue}
                 onChange={(e) => setNewShow({...newShow, venue: e.target.value})}
                 className="bg-slate-700 border-slate-600 text-white"
-                placeholder="e.g., Madison Square Garden"
+                placeholder="Enter venue name"
               />
             </div>
 

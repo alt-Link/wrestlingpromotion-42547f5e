@@ -92,7 +92,7 @@ export const AddShowDialog = ({ isOpen, onOpenChange, onAddShow }: AddShowDialog
                 value={newShow.name || ""}
                 onChange={(e) => setNewShow({...newShow, name: e.target.value})}
                 className="bg-slate-700 border-blue-500/30 text-white"
-                placeholder="e.g. Monday Night Raw"
+                placeholder="Enter show name"
               />
             </div>
             <div>
@@ -101,7 +101,7 @@ export const AddShowDialog = ({ isOpen, onOpenChange, onAddShow }: AddShowDialog
                 value={newShow.brand || ""}
                 onChange={(e) => setNewShow({...newShow, brand: e.target.value})}
                 className="bg-slate-700 border-blue-500/30 text-white"
-                placeholder="Enter brand name (e.g. Raw, SmackDown, NXT)"
+                placeholder="Enter brand name"
               />
             </div>
           </div>
@@ -157,7 +157,7 @@ export const AddShowDialog = ({ isOpen, onOpenChange, onAddShow }: AddShowDialog
               value={newShow.venue || ""}
               onChange={(e) => setNewShow({...newShow, venue: e.target.value})}
               className="bg-slate-700 border-blue-500/30 text-white"
-              placeholder="e.g. Madison Square Garden"
+              placeholder="Enter venue name"
             />
           </div>
 

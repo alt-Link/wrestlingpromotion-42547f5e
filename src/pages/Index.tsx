@@ -7,7 +7,7 @@ import { ChampionshipManager } from "@/components/ChampionshipManager";
 import { ShowBooking } from "@/components/ShowBooking";
 import { RivalryTracker } from "@/components/RivalryTracker";
 import { CalendarView } from "@/components/CalendarView";
-import { UniverseStats } from "@/components/UniverseStats";
+import { PromotionStats } from "@/components/PromotionStats";
 import { Settings } from "@/components/Settings";
 import { Storylines } from "@/components/Storylines";
 import { Trophy, Users, Calendar, Zap, BarChart3, Settings as SettingsIcon, Download, BookOpen } from "lucide-react";
@@ -18,8 +18,8 @@ const Index = () => {
   const { toast } = useToast();
 
   const handleExportData = () => {
-    // Get universe data from localStorage
-    const universeData = {
+    // Get promotion data from localStorage
+    const promotionData = {
       wrestlers: JSON.parse(localStorage.getItem("wrestlers") || "[]"),
       championships: JSON.parse(localStorage.getItem("championships") || "[]"),
       shows: JSON.parse(localStorage.getItem("shows") || "[]"),
@@ -27,38 +27,38 @@ const Index = () => {
       exportDate: new Date().toISOString()
     };
 
-    const dataStr = JSON.stringify(universeData, null, 2);
+    const dataStr = JSON.stringify(promotionData, null, 2);
     const dataBlob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(dataBlob);
     
     const link = document.createElement("a");
     link.href = url;
-    link.download = `wrestling-universe-${new Date().toISOString().split('T')[0]}.json`;
+    link.download = `wrestling-promotion-${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     
     URL.revokeObjectURL(url);
     
     toast({
-      title: "Universe Exported",
-      description: "Your wrestling universe data has been downloaded successfully.",
+      title: "Promotion Exported",
+      description: "Your wrestling promotion data has been downloaded successfully.",
     });
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900">
       <div className="container mx-auto p-6">
         <header className="mb-8">
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-4xl font-bold text-white mb-2">
-                Wrestling 2K25 Universe Manager
+                The Gorilla Room
               </h1>
-              <p className="text-purple-200">Complete control over your wrestling universe</p>
+              <p className="text-slate-300">Complete control over your wrestling promotion</p>
             </div>
             <div className="flex gap-3">
-              <Button onClick={handleExportData} variant="outline" className="border-purple-500 text-purple-300 hover:bg-purple-500/20">
+              <Button onClick={handleExportData} variant="outline" className="border-slate-500 text-slate-300 hover:bg-slate-500/20">
                 <Download className="w-4 h-4 mr-2" />
-                Export Universe
+                Export Promotion
               </Button>
               <Button 
                 onClick={async () => {
@@ -75,43 +75,43 @@ const Index = () => {
         </header>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-8 mb-8 bg-slate-800/50 border border-purple-500/30">
-            <TabsTrigger value="dashboard" className="data-[state=active]:bg-purple-600">
+          <TabsList className="grid w-full grid-cols-8 mb-8 bg-slate-800/50 border border-slate-600/30">
+            <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-600">
               <BarChart3 className="w-4 h-4 mr-2" />
               Dashboard
             </TabsTrigger>
-            <TabsTrigger value="roster" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="roster" className="data-[state=active]:bg-slate-600">
               <Users className="w-4 h-4 mr-2" />
               Roster
             </TabsTrigger>
-            <TabsTrigger value="championships" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="championships" className="data-[state=active]:bg-slate-600">
               <Trophy className="w-4 h-4 mr-2" />
               Titles
             </TabsTrigger>
-            <TabsTrigger value="booking" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="booking" className="data-[state=active]:bg-slate-600">
               <Calendar className="w-4 h-4 mr-2" />
               Booking
             </TabsTrigger>
-            <TabsTrigger value="calendar" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="calendar" className="data-[state=active]:bg-slate-600">
               <Calendar className="w-4 h-4 mr-2" />
               Calendar
             </TabsTrigger>
-            <TabsTrigger value="rivalries" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="rivalries" className="data-[state=active]:bg-slate-600">
               <Zap className="w-4 h-4 mr-2" />
               Rivalries
             </TabsTrigger>
-            <TabsTrigger value="storylines" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="storylines" className="data-[state=active]:bg-slate-600">
               <BookOpen className="w-4 h-4 mr-2" />
               Storylines
             </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-purple-600">
+            <TabsTrigger value="settings" className="data-[state=active]:bg-slate-600">
               <SettingsIcon className="w-4 h-4 mr-2" />
               Settings
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard">
-            <UniverseStats />
+            <PromotionStats />
           </TabsContent>
 
           <TabsContent value="roster">

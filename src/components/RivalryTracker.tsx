@@ -816,7 +816,7 @@ export const RivalryTracker = () => {
             <Zap className="w-12 h-12 text-red-400 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">No Rivalries Yet</h3>
             <p className="text-red-200 mb-4">
-              Start tracking the dramatic conflicts and feuds in your wrestling universe.
+              Start tracking the dramatic conflicts and feuds in your wrestling promotion.
             </p>
             <Button onClick={() => setIsAddDialogOpen(true)} className="bg-red-600 hover:bg-red-700">
               <Plus className="w-4 h-4 mr-2" />

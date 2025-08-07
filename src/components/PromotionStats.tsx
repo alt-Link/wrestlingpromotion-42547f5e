@@ -23,7 +23,7 @@ interface UniverseData {
   currentChampions: any[];
 }
 
-export const UniverseStats = () => {
+export const PromotionStats = () => {
   const [stats, setStats] = useState<UniverseData>({
     totalWrestlers: 0,
     freeAgents: 0,

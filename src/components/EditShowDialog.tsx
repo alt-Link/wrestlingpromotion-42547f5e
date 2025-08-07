@@ -43,7 +43,7 @@ export const EditShowDialog = ({
                 value={editingShow.name}
                 onChange={(e) => onEditShow({...editingShow, name: e.target.value})}
                 className="bg-slate-700 border-blue-500/30 text-white"
-                placeholder="e.g. Monday Night Raw"
+                placeholder="Enter show name"
               />
             </div>
             <div>
@@ -52,7 +52,7 @@ export const EditShowDialog = ({
                 value={editingShow.brand || ""}
                 onChange={(e) => onEditShow({...editingShow, brand: e.target.value})}
                 className="bg-slate-700 border-blue-500/30 text-white"
-                placeholder="Enter brand name (e.g. Raw, SmackDown, NXT)"
+                placeholder="Enter brand name"
               />
             </div>
           </div>
@@ -108,7 +108,7 @@ export const EditShowDialog = ({
               value={editingShow.venue}
               onChange={(e) => onEditShow({...editingShow, venue: e.target.value})}
               className="bg-slate-700 border-blue-500/30 text-white"
-              placeholder="e.g. Madison Square Garden"
+              placeholder="Enter venue name"
             />
           </div>
 

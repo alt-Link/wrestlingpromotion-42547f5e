@@ -29,7 +29,7 @@ export const Settings = () => {
             
             toast({
               title: "Data Imported",
-              description: "Your wrestling universe has been restored successfully.",
+              description: "Your wrestling promotion has been restored successfully.",
             });
             
             // Refresh the page to load new data
@@ -49,14 +49,14 @@ export const Settings = () => {
   };
 
   const handleResetData = () => {
-    if (confirm("Are you sure you want to reset all universe data? This action cannot be undone.")) {
+    if (confirm("Are you sure you want to reset all promotion data? This action cannot be undone.")) {
       localStorage.removeItem("wrestlers");
       localStorage.removeItem("championships");
       localStorage.removeItem("shows");
       localStorage.removeItem("rivalries");
       
       toast({
-        title: "Universe Reset",
+        title: "Promotion Reset",
         description: "All data has been cleared. The page will refresh.",
       });
       
@@ -102,10 +102,10 @@ export const Settings = () => {
                 className="w-full bg-green-600 hover:bg-green-700"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Import Universe Data
+                Import Promotion Data
               </Button>
               <p className="text-gray-400 text-xs">
-                Import a previously exported universe JSON file
+                Import a previously exported promotion JSON file
               </p>
             </div>
             
@@ -119,7 +119,7 @@ export const Settings = () => {
                 Reset All Data
               </Button>
               <p className="text-gray-400 text-xs mt-1">
-                This will permanently delete all universe data
+                This will permanently delete all promotion data
               </p>
             </div>
           </CardContent>
@@ -175,7 +175,7 @@ export const Settings = () => {
             </div>
             <div className="pt-3 border-t border-slate-600">
               <p className="text-gray-400 text-sm">
-                Built for wrestling enthusiasts who want complete control over their Universe Mode experience.
+                Built for wrestling enthusiasts who want complete control over their promotion experience.
               </p>
             </div>
           </CardContent>

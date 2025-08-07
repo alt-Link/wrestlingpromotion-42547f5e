@@ -72,21 +72,21 @@ export const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md bg-slate-800 border-purple-500/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-slate-800 border-slate-600/30">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-white">
-            Wrestling Universe Manager
+            The Gorilla Room
           </CardTitle>
-          <p className="text-purple-200">Sign in to manage your wrestling universe</p>
+          <p className="text-slate-300">Sign in to manage your wrestling promotion</p>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2 bg-slate-700">
-              <TabsTrigger value="signin" className="data-[state=active]:bg-purple-600">
+              <TabsTrigger value="signin" className="data-[state=active]:bg-slate-600">
                 Sign In
               </TabsTrigger>
-              <TabsTrigger value="signup" className="data-[state=active]:bg-purple-600">
+              <TabsTrigger value="signup" className="data-[state=active]:bg-slate-600">
                 Sign Up
               </TabsTrigger>
             </TabsList>
@@ -94,7 +94,7 @@ export const Auth = () => {
             <TabsContent value="signin">
               <form onSubmit={handleSignIn} className="space-y-4">
                 <div>
-                  <Label htmlFor="signin-email" className="text-purple-200">
+                  <Label htmlFor="signin-email" className="text-slate-300">
                     Email
                   </Label>
                   <Input
@@ -102,12 +102,12 @@ export const Auth = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-slate-700 border-purple-500/30 text-white"
+                    className="bg-slate-700 border-slate-600/30 text-white"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="signin-password" className="text-purple-200">
+                  <Label htmlFor="signin-password" className="text-slate-300">
                     Password
                   </Label>
                   <Input
@@ -115,13 +115,13 @@ export const Auth = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-slate-700 border-purple-500/30 text-white"
+                    className="bg-slate-700 border-slate-600/30 text-white"
                     required
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  className="w-full bg-slate-600 hover:bg-slate-700"
                   disabled={loading}
                 >
                   {loading ? (
@@ -139,7 +139,7 @@ export const Auth = () => {
             <TabsContent value="signup">
               <form onSubmit={handleSignUp} className="space-y-4">
                 <div>
-                  <Label htmlFor="signup-email" className="text-purple-200">
+                  <Label htmlFor="signup-email" className="text-slate-300">
                     Email
                   </Label>
                   <Input
@@ -147,12 +147,12 @@ export const Auth = () => {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-slate-700 border-purple-500/30 text-white"
+                    className="bg-slate-700 border-slate-600/30 text-white"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="signup-password" className="text-purple-200">
+                  <Label htmlFor="signup-password" className="text-slate-300">
                     Password
                   </Label>
                   <Input
@@ -160,12 +160,12 @@ export const Auth = () => {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="bg-slate-700 border-purple-500/30 text-white"
+                    className="bg-slate-700 border-slate-600/30 text-white"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="confirm-password" className="text-purple-200">
+                  <Label htmlFor="confirm-password" className="text-slate-300">
                     Confirm Password
                   </Label>
                   <Input
@@ -173,13 +173,13 @@ export const Auth = () => {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-slate-700 border-purple-500/30 text-white"
+                    className="bg-slate-700 border-slate-600/30 text-white"
                     required
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="w-full bg-purple-600 hover:bg-purple-700"
+                  className="w-full bg-slate-600 hover:bg-slate-700"
                   disabled={loading}
                 >
                   {loading ? (
