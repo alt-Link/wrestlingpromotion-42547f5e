@@ -162,6 +162,14 @@ export const CalendarView = () => {
     // If this is a template (recurring show), create/find instance
     if (selectedShow.isTemplate) {
       targetShow = findOrCreateShowInstance(selectedShow, selectedDate);
+      // Update shows state immediately after creating instance
+      setShows(prev => {
+        const existing = prev.find(s => s.id === targetShow.id);
+        if (!existing) {
+          return [...prev, targetShow];
+        }
+        return prev;
+      });
     }
 
     const updatedShows = shows.map(show => 
@@ -170,13 +178,19 @@ export const CalendarView = () => {
         : show
     );
 
-    saveShows(updatedShows);
-    
-    // Update selectedShow to reflect the new match
-    const updatedTargetShow = updatedShows.find(s => s.id === targetShow.id);
-    if (updatedTargetShow) {
-      setSelectedShow(updatedTargetShow);
+    // If we created a new instance, make sure it's in the updated shows
+    if (selectedShow.isTemplate && !shows.find(s => s.id === targetShow.id)) {
+      const showWithMatch = { ...targetShow, matches: [...(targetShow.matches || []), match] };
+      updatedShows.push(showWithMatch);
+      setSelectedShow(showWithMatch);
+    } else {
+      const updatedTargetShow = updatedShows.find(s => s.id === targetShow.id);
+      if (updatedTargetShow) {
+        setSelectedShow(updatedTargetShow);
+      }
     }
+
+    saveShows(updatedShows);
     
     setNewMatch({
       participants: [],
@@ -190,8 +204,10 @@ export const CalendarView = () => {
       description: `Match has been added to ${targetShow.name} on ${selectedDate.toLocaleDateString()}.`
     });
 
-    // Force calendar refresh
-    refreshShows();
+    // Force calendar refresh with a slight delay to ensure state updates
+    setTimeout(() => {
+      refreshShows();
+    }, 100);
   };
 
   const handleDeleteMatch = (matchId: string, showId: string, matchName: string) => {

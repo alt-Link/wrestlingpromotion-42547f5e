@@ -204,12 +204,13 @@ export const MiniCalendar = () => {
 
     const updatedShows = shows.map(show =>
       show.id === selectedShow.id
-        ? { ...show, matches: [...show.matches, match] }
+        ? { ...show, matches: [...(show.matches || []), match] }
         : show
     );
 
     saveShows(updatedShows);
     
+    // Force refresh and update selectedShow state
     const updatedShow = updatedShows.find(s => s.id === selectedShow.id);
     if (updatedShow) {
       setSelectedShow(updatedShow);
@@ -217,6 +218,11 @@ export const MiniCalendar = () => {
     
     setNewMatch({ participants: [], type: "Singles" });
     setIsMatchDialogOpen(false);
+    
+    // Refresh the shows data to ensure calendar reflects changes
+    setTimeout(() => {
+      refreshShows();
+    }, 100);
     
     toast({
       title: "Match Added",
