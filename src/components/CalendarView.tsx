@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Trophy, Clock, Eye } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Users, Trophy, Clock, Eye, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ConfirmDialog } from "./ConfirmDialog";
 
 interface Show {
   id: string;
@@ -39,6 +40,8 @@ export const CalendarView = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [isMatchDialogOpen, setIsMatchDialogOpen] = useState(false);
   const [isShowDetailsDialogOpen, setIsShowDetailsDialogOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<{ type: 'show' | 'match'; id: string; showId?: string; name?: string } | null>(null);
   const [newMatch, setNewMatch] = useState<Partial<Match>>({
     participants: [],
     type: "Singles",
@@ -189,6 +192,38 @@ export const CalendarView = () => {
 
     // Force calendar refresh
     refreshShows();
+  };
+
+  const handleDeleteMatch = (matchId: string, showId: string, matchName: string) => {
+    setDeleteItem({ type: 'match', id: matchId, showId, name: matchName });
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteItem) return;
+
+    if (deleteItem.type === 'match' && deleteItem.showId) {
+      const updatedShows = shows.map(show =>
+        show.id === deleteItem.showId
+          ? { ...show, matches: (show.matches || []).filter(match => match.id !== deleteItem.id) }
+          : show
+      );
+      
+      saveShows(updatedShows);
+      
+      const updatedShow = updatedShows.find(s => s.id === deleteItem.showId);
+      if (updatedShow) {
+        setSelectedShow(updatedShow);
+      }
+      
+      toast({
+        title: "Match Deleted",
+        description: "The match has been removed from the show."
+      });
+    }
+
+    setDeleteItem(null);
+    setIsDeleteConfirmOpen(false);
   };
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
@@ -453,7 +488,17 @@ export const CalendarView = () => {
                             <h4 className="font-semibold text-white">{match.participants.join(" vs ")}</h4>
                             <p className="text-sm text-green-200">{match.type}</p>
                           </div>
-                          <span className="text-sm text-slate-400">Match #{index + 1}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-400">Match #{index + 1}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteMatch(match.id, selectedShow.id, match.participants.join(' vs '))}
+                              className="text-red-400 hover:text-red-300 h-8 w-8 p-0"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                         
                         {match.championship && (
@@ -489,6 +534,20 @@ export const CalendarView = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        isOpen={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+        title={deleteItem?.type === 'match' ? "Delete Match" : "Delete Show"}
+        description={
+          deleteItem?.type === 'match' 
+            ? `Are you sure you want to delete the match "${deleteItem.name}"? This action cannot be undone.`
+            : `Are you sure you want to delete the show "${deleteItem?.name}"? This action cannot be undone.`
+        }
+        onConfirm={confirmDelete}
+        confirmText="Delete"
+        destructive
+      />
 
       {/* Match Booking Dialog */}
       <Dialog open={isMatchDialogOpen} onOpenChange={setIsMatchDialogOpen}>
