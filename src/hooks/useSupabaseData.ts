@@ -65,16 +65,20 @@ export const useSupabaseData = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if we already have data in Supabase
-      const { data: existingWrestlers } = await supabase
-        .from('wrestlers')
-        .select('id')
-        .limit(1);
+      // Check per-table if this user already has data in Supabase
+      const [
+        { data: existingWrestlers },
+        { data: existingShows },
+        { data: existingChampionships },
+        { data: existingRivalries }
+      ] = await Promise.all([
+        supabase.from('wrestlers').select('id').eq('user_id', user.id).limit(1),
+        supabase.from('shows').select('id').eq('user_id', user.id).limit(1),
+        supabase.from('championships').select('id').eq('user_id', user.id).limit(1),
+        supabase.from('rivalries').select('id').eq('user_id', user.id).limit(1),
+      ]);
 
-      if (existingWrestlers && existingWrestlers.length > 0) {
-        // Data already exists in Supabase, skip migration
-        return;
-      }
+      let didMigrate = false;
 
       // Migrate wrestlers
       const localWrestlers = JSON.parse(localStorage.getItem("wrestlers") || "[]");
@@ -97,13 +101,14 @@ export const useSupabaseData = () => {
         }))
       ];
 
-      if (allWrestlers.length > 0) {
+      if ((existingWrestlers?.length ?? 0) === 0 && allWrestlers.length > 0) {
         await supabase.from('wrestlers').insert(allWrestlers);
+        didMigrate = true;
       }
 
       // Migrate shows
       const localShows = JSON.parse(localStorage.getItem("shows") || "[]");
-      if (localShows.length > 0) {
+      if ((existingShows?.length ?? 0) === 0 && localShows.length > 0) {
         const showsWithUserId = localShows.map((show: any) => ({
           ...show,
           user_id: user.id,
@@ -113,11 +118,12 @@ export const useSupabaseData = () => {
           recurring_end_date: show.recurringEndDate
         }));
         await supabase.from('shows').insert(showsWithUserId);
+        didMigrate = true;
       }
 
       // Migrate championships
       const localChampionships = JSON.parse(localStorage.getItem("championships") || "[]");
-      if (localChampionships.length > 0) {
+      if ((existingChampionships?.length ?? 0) === 0 && localChampionships.length > 0) {
         const championshipsWithUserId = localChampionships.map((championship: any) => ({
           ...championship,
           user_id: user.id,
@@ -126,20 +132,22 @@ export const useSupabaseData = () => {
           title_history: championship.titleHistory
         }));
         await supabase.from('championships').insert(championshipsWithUserId);
+        didMigrate = true;
       }
 
       // Migrate rivalries
       const localRivalries = JSON.parse(localStorage.getItem("rivalries") || "[]");
-      if (localRivalries.length > 0) {
+      if ((existingRivalries?.length ?? 0) === 0 && localRivalries.length > 0) {
         const rivalriesWithUserId = localRivalries.map((rivalry: any) => ({
           ...rivalry,
           user_id: user.id,
           start_date: rivalry.startDate
         }));
         await supabase.from('rivalries').insert(rivalriesWithUserId);
+        didMigrate = true;
       }
 
-      if (allWrestlers.length > 0 || localShows.length > 0 || localChampionships.length > 0 || localRivalries.length > 0) {
+      if (didMigrate) {
         toast({
           title: "Data Migrated",
           description: "Your wrestling promotion data has been successfully migrated to the cloud!",
