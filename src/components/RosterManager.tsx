@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Plus, Search, Users, Edit, Trash2, UserCheck, UserX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAutoSave } from "@/hooks/useAutoSave";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
 
 interface Wrestler {
   id: string;
@@ -24,11 +24,11 @@ interface Wrestler {
   injured: boolean;
   break: boolean;
   customAttributes: Record<string, string>;
+  isFreeAgent?: boolean;
 }
 
 export const RosterManager = () => {
-  const [wrestlers, setWrestlers] = useState<Wrestler[]>([]);
-  const [freeAgents, setFreeAgents] = useState<Wrestler[]>([]);
+  const { wrestlers: allWrestlers, loading, saveWrestlers } = useSupabaseData();
   const [availableBrands, setAvailableBrands] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterBrand, setFilterBrand] = useState("all");
@@ -44,16 +44,15 @@ export const RosterManager = () => {
   const [wrestlerToDelete, setWrestlerToDelete] = useState<{ id: string; name: string; isFreeAgent: boolean } | null>(null);
   const { toast } = useToast();
 
-  // Auto-save hooks
-  const autoSaveWrestlers = useAutoSave({
-    onSave: () => localStorage.setItem("wrestlers", JSON.stringify(wrestlers)),
-    showToast: false
-  });
+  // Split wrestlers into roster and free agents
+  const wrestlers = allWrestlers.filter(w => !w.isFreeAgent);
+  const freeAgents = allWrestlers.filter(w => w.isFreeAgent);
 
-  const autoSaveFreeAgents = useAutoSave({
-    onSave: () => localStorage.setItem("freeAgents", JSON.stringify(freeAgents)),
-    showToast: false
-  });
+  // Helper functions to update all wrestlers
+  const updateAllWrestlers = (newWrestlers: Wrestler[], newFreeAgents: Wrestler[]) => {
+    const combined = [...newWrestlers, ...newFreeAgents];
+    saveWrestlers(combined);
+  };
 
   const [newWrestler, setNewWrestler] = useState<Partial<Wrestler>>({
     name: "",
@@ -67,24 +66,8 @@ export const RosterManager = () => {
   });
 
   useEffect(() => {
-    const savedWrestlers = localStorage.getItem("wrestlers");
-    const savedFreeAgents = localStorage.getItem("freeAgents");
+    // Get available brands from shows (we'll load this from Supabase eventually)
     const savedShows = localStorage.getItem("shows");
-    
-    if (savedWrestlers) {
-      setWrestlers(JSON.parse(savedWrestlers));
-    } else {
-      // Start with empty roster
-      setWrestlers([]);
-    }
-    if (savedFreeAgents) {
-      setFreeAgents(JSON.parse(savedFreeAgents));
-    } else {
-      // Start with empty free agents
-      setFreeAgents([]);
-    }
-
-    // Get available brands from shows
     if (savedShows) {
       const shows = JSON.parse(savedShows);
       const brands = Array.from(new Set(shows.map((show: any) => show.brand).filter((brand: string) => brand && brand.trim()))) as string[];
@@ -93,25 +76,6 @@ export const RosterManager = () => {
       setAvailableBrands([]);
     }
   }, []);
-
-  // Trigger auto-save when data changes
-  useEffect(() => {
-    autoSaveWrestlers();
-  }, [wrestlers, autoSaveWrestlers]);
-
-  useEffect(() => {
-    autoSaveFreeAgents();
-  }, [freeAgents, autoSaveFreeAgents]);
-
-  const saveWrestlers = (updatedWrestlers: Wrestler[]) => {
-    setWrestlers(updatedWrestlers);
-    localStorage.setItem("wrestlers", JSON.stringify(updatedWrestlers));
-  };
-
-  const saveFreeAgents = (updatedFreeAgents: Wrestler[]) => {
-    setFreeAgents(updatedFreeAgents);
-    localStorage.setItem("freeAgents", JSON.stringify(updatedFreeAgents));
-  };
 
   const editWrestler = (wrestler: Wrestler) => {
     setEditingWrestler({...wrestler});
@@ -128,11 +92,11 @@ export const RosterManager = () => {
       return;
     }
 
-    // Simply update the wrestler without moving to free agents when on break
-    const updatedWrestlers = wrestlers.map(w => 
+    // Update the wrestler in the combined list
+    const updatedAllWrestlers = allWrestlers.map(w => 
       w.id === editingWrestler.id ? editingWrestler : w
     );
-    saveWrestlers(updatedWrestlers);
+    saveWrestlers(updatedAllWrestlers);
     
     setEditingWrestler(null);
     setIsEditDialogOpen(false);
@@ -147,12 +111,12 @@ export const RosterManager = () => {
     const wrestler = wrestlers.find(w => w.id === id);
     if (wrestler) {
       // Move to free agents
-      const releasedWrestler = { ...wrestler, brand: "Free Agent" };
-      const updatedWrestlers = wrestlers.filter(w => w.id !== id);
-      const updatedFreeAgents = [...freeAgents, releasedWrestler];
+      const releasedWrestler = { ...wrestler, brand: "Free Agent", isFreeAgent: true };
+      const updatedAllWrestlers = allWrestlers.map(w => 
+        w.id === id ? releasedWrestler : w
+      );
       
-      saveWrestlers(updatedWrestlers);
-      saveFreeAgents(updatedFreeAgents);
+      saveWrestlers(updatedAllWrestlers);
       
       setEditingWrestler(null);
       setIsEditDialogOpen(false);
@@ -165,12 +129,12 @@ export const RosterManager = () => {
   };
 
   const signFreeAgent = (freeAgent: Wrestler, newBrand: string) => {
-    const signedWrestler = { ...freeAgent, brand: newBrand };
-    const updatedFreeAgents = freeAgents.filter(fa => fa.id !== freeAgent.id);
-    const updatedWrestlers = [...wrestlers, signedWrestler];
+    const signedWrestler = { ...freeAgent, brand: newBrand, isFreeAgent: false };
+    const updatedAllWrestlers = allWrestlers.map(w => 
+      w.id === freeAgent.id ? signedWrestler : w
+    );
     
-    saveWrestlers(updatedWrestlers);
-    saveFreeAgents(updatedFreeAgents);
+    saveWrestlers(updatedAllWrestlers);
     
     setSelectedFreeAgent(null);
     setIsFreeAgentDialogOpen(false);
@@ -202,11 +166,12 @@ export const RosterManager = () => {
       faction: newWrestler.faction,
       injured: newWrestler.injured || false,
       break: newWrestler.break || false,
-      customAttributes: newWrestler.customAttributes || {}
+      customAttributes: newWrestler.customAttributes || {},
+      isFreeAgent: (newWrestler.brand || "Free Agent") === "Free Agent"
     };
 
-    const updatedWrestlers = [...wrestlers, wrestler];
-    saveWrestlers(updatedWrestlers);
+    const updatedAllWrestlers = [...allWrestlers, wrestler];
+    saveWrestlers(updatedAllWrestlers);
     
     setNewWrestler({
       name: "",
@@ -236,8 +201,8 @@ export const RosterManager = () => {
     
     if (wrestlerToDelete.isFreeAgent) {
       // Permanently delete free agents
-      const updatedFreeAgents = freeAgents.filter(fa => fa.id !== wrestlerToDelete.id);
-      saveFreeAgents(updatedFreeAgents);
+      const updatedAllWrestlers = allWrestlers.filter(w => w.id !== wrestlerToDelete.id);
+      saveWrestlers(updatedAllWrestlers);
       toast({
         title: "Free Agent Removed",
         description: "Free agent has been permanently removed."
@@ -246,10 +211,10 @@ export const RosterManager = () => {
       // Move roster wrestlers to free agency
       const wrestlerToRelease = wrestlers.find(w => w.id === wrestlerToDelete.id);
       if (wrestlerToRelease) {
-        const updatedWrestlers = wrestlers.filter(w => w.id !== wrestlerToDelete.id);
-        const updatedFreeAgents = [...freeAgents, { ...wrestlerToRelease, brand: "", status: "Available" }];
-        saveWrestlers(updatedWrestlers);
-        saveFreeAgents(updatedFreeAgents);
+        const updatedAllWrestlers = allWrestlers.map(w => 
+          w.id === wrestlerToDelete.id ? { ...w, isFreeAgent: true, brand: "Free Agent" } : w
+        );
+        saveWrestlers(updatedAllWrestlers);
         toast({
           title: "Wrestler Released",
           description: `${wrestlerToRelease.name} has been released to free agency.`
@@ -261,23 +226,6 @@ export const RosterManager = () => {
     setWrestlerToDelete(null);
   };
 
-  const deleteWrestler = (id: string) => {
-    const updatedWrestlers = wrestlers.filter(w => w.id !== id);
-    saveWrestlers(updatedWrestlers);
-    toast({
-      title: "Wrestler Removed",
-      description: "Wrestler has been removed from the roster."
-    });
-  };
-
-  const deleteFreeAgent = (id: string) => {
-    const updatedFreeAgents = freeAgents.filter(fa => fa.id !== id);
-    saveFreeAgents(updatedFreeAgents);
-    toast({
-      title: "Free Agent Removed",
-      description: "Free agent has been permanently removed."
-    });
-  };
 
   const currentList = showFreeAgents ? freeAgents : wrestlers;
   const filteredWrestlers = currentList.filter(wrestler => {
@@ -402,6 +350,17 @@ export const RosterManager = () => {
       </CardContent>
     </Card>
   );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto mb-4"></div>
+          <p className="text-purple-200">Loading your wrestling roster...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

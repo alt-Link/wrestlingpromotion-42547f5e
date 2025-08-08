@@ -10,6 +10,7 @@ import { CalendarView } from "@/components/CalendarView";
 import { PromotionStats } from "@/components/PromotionStats";
 import { Settings } from "@/components/Settings";
 import { Storylines } from "@/components/Storylines";
+import { DataMigrationNotice } from "@/components/DataMigrationNotice";
 import { Trophy, Users, Calendar, Zap, BarChart3, Settings as SettingsIcon, Download, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -74,6 +75,7 @@ const Index = () => {
           </div>
         </header>
 
+        <DataMigrationNotice />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-8 mb-8 bg-slate-800/50 border border-slate-600/30">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-600">

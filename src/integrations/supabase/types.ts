@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      championships: {
+        Row: {
+          brand: string
+          champion_since: string | null
+          created_at: string
+          current_champion: string | null
+          id: string
+          name: string
+          title_history: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand: string
+          champion_since?: string | null
+          created_at?: string
+          current_champion?: string | null
+          id?: string
+          name: string
+          title_history?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand?: string
+          champion_since?: string | null
+          created_at?: string
+          current_champion?: string | null
+          id?: string
+          name?: string
+          title_history?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -36,6 +72,153 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      rivalries: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          intensity: number | null
+          name: string
+          participants: string[]
+          start_date: string | null
+          status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          intensity?: number | null
+          name: string
+          participants: string[]
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          intensity?: number | null
+          name?: string
+          participants?: string[]
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      shows: {
+        Row: {
+          brand: string
+          created_at: string
+          date: string
+          id: string
+          is_recurring: boolean | null
+          is_template: boolean | null
+          location: string | null
+          matches: Json | null
+          name: string
+          recurring_end_date: string | null
+          recurring_frequency: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          brand: string
+          created_at?: string
+          date: string
+          id?: string
+          is_recurring?: boolean | null
+          is_template?: boolean | null
+          location?: string | null
+          matches?: Json | null
+          name: string
+          recurring_end_date?: string | null
+          recurring_frequency?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          brand?: string
+          created_at?: string
+          date?: string
+          id?: string
+          is_recurring?: boolean | null
+          is_template?: boolean | null
+          location?: string | null
+          matches?: Json | null
+          name?: string
+          recurring_end_date?: string | null
+          recurring_frequency?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wrestlers: {
+        Row: {
+          alignment: string | null
+          brand: string | null
+          created_at: string
+          custom_attributes: Json | null
+          faction: string | null
+          gender: string | null
+          id: string
+          injured: boolean | null
+          is_free_agent: boolean | null
+          manager: string | null
+          name: string
+          on_break: boolean | null
+          ovr: number | null
+          status: string | null
+          titles: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          alignment?: string | null
+          brand?: string | null
+          created_at?: string
+          custom_attributes?: Json | null
+          faction?: string | null
+          gender?: string | null
+          id?: string
+          injured?: boolean | null
+          is_free_agent?: boolean | null
+          manager?: string | null
+          name: string
+          on_break?: boolean | null
+          ovr?: number | null
+          status?: string | null
+          titles?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          alignment?: string | null
+          brand?: string | null
+          created_at?: string
+          custom_attributes?: Json | null
+          faction?: string | null
+          gender?: string | null
+          id?: string
+          injured?: boolean | null
+          is_free_agent?: boolean | null
+          manager?: string | null
+          name?: string
+          on_break?: boolean | null
+          ovr?: number | null
+          status?: string | null
+          titles?: string[] | null
           updated_at?: string
           user_id?: string
         }
