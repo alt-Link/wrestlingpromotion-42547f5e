@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { Plus, Search, Users, Edit, Trash2, UserCheck } from "lucide-react";
+import { Plus, Search, Users, Edit, Trash2, UserCheck, UserX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAutoSave } from "@/hooks/useAutoSave";
 
@@ -235,6 +235,7 @@ export const RosterManager = () => {
     if (!wrestlerToDelete) return;
     
     if (wrestlerToDelete.isFreeAgent) {
+      // Permanently delete free agents
       const updatedFreeAgents = freeAgents.filter(fa => fa.id !== wrestlerToDelete.id);
       saveFreeAgents(updatedFreeAgents);
       toast({
@@ -242,12 +243,18 @@ export const RosterManager = () => {
         description: "Free agent has been permanently removed."
       });
     } else {
-      const updatedWrestlers = wrestlers.filter(w => w.id !== wrestlerToDelete.id);
-      saveWrestlers(updatedWrestlers);
-      toast({
-        title: "Wrestler Removed",
-        description: "Wrestler has been removed from the roster."
-      });
+      // Move roster wrestlers to free agency
+      const wrestlerToRelease = wrestlers.find(w => w.id === wrestlerToDelete.id);
+      if (wrestlerToRelease) {
+        const updatedWrestlers = wrestlers.filter(w => w.id !== wrestlerToDelete.id);
+        const updatedFreeAgents = [...freeAgents, { ...wrestlerToRelease, brand: "", status: "Available" }];
+        saveWrestlers(updatedWrestlers);
+        saveFreeAgents(updatedFreeAgents);
+        toast({
+          title: "Wrestler Released",
+          description: `${wrestlerToRelease.name} has been released to free agency.`
+        });
+      }
     }
     
     setIsDeleteConfirmOpen(false);
@@ -344,7 +351,7 @@ export const RosterManager = () => {
               className="text-red-400 hover:bg-red-500/20"
               onClick={() => confirmDeleteWrestler(wrestler, showFreeAgents)}
             >
-              <Trash2 className="w-4 h-4" />
+              {showFreeAgents ? <Trash2 className="w-4 h-4" /> : <UserX className="w-4 h-4" />}
             </Button>
           </div>
         </div>
@@ -763,14 +770,14 @@ export const RosterManager = () => {
       <ConfirmDialog
         isOpen={isDeleteConfirmOpen}
         onOpenChange={setIsDeleteConfirmOpen}
-        title="Delete Wrestler"
+        title={wrestlerToDelete?.isFreeAgent ? "Delete Free Agent" : "Release Wrestler"}
         description={
           wrestlerToDelete?.isFreeAgent
             ? `Are you sure you want to permanently delete ${wrestlerToDelete.name}? This action cannot be undone.`
-            : `Are you sure you want to delete ${wrestlerToDelete?.name} from the roster? This action cannot be undone.`
+            : `Are you sure you want to release ${wrestlerToDelete?.name} to free agency? They can be re-signed later.`
         }
         onConfirm={handleDeleteConfirm}
-        confirmText="Delete"
+        confirmText={wrestlerToDelete?.isFreeAgent ? "Delete" : "Release"}
         cancelText="Cancel"
         destructive={true}
       />

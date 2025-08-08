@@ -146,13 +146,6 @@ export const Settings = () => {
               <Switch defaultChecked />
             </div>
             
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-purple-200">Enable AI Suggestions</Label>
-                <p className="text-gray-400 text-sm">Get booking and storyline suggestions</p>
-              </div>
-              <Switch />
-            </div>
           </CardContent>
         </Card>
 
