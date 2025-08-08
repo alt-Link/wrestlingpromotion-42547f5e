@@ -66,4 +66,4 @@ enable_confirmations = false
 enabled = true
 
 [functions.send-auth-email]
-verify_jwt = false
+verify_jwt = true
