@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Plus, Search, Users, Edit, Trash2, UserCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAutoSave } from "@/hooks/useAutoSave";
@@ -39,6 +40,8 @@ export const RosterManager = () => {
   const [isFreeAgentDialogOpen, setIsFreeAgentDialogOpen] = useState(false);
   const [selectedFreeAgent, setSelectedFreeAgent] = useState<Wrestler | null>(null);
   const [showFreeAgents, setShowFreeAgents] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [wrestlerToDelete, setWrestlerToDelete] = useState<{ id: string; name: string; isFreeAgent: boolean } | null>(null);
   const { toast } = useToast();
 
   // Auto-save hooks
@@ -223,6 +226,34 @@ export const RosterManager = () => {
     });
   };
 
+  const confirmDeleteWrestler = (wrestler: Wrestler, isFreeAgent: boolean) => {
+    setWrestlerToDelete({ id: wrestler.id, name: wrestler.name, isFreeAgent });
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!wrestlerToDelete) return;
+    
+    if (wrestlerToDelete.isFreeAgent) {
+      const updatedFreeAgents = freeAgents.filter(fa => fa.id !== wrestlerToDelete.id);
+      saveFreeAgents(updatedFreeAgents);
+      toast({
+        title: "Free Agent Removed",
+        description: "Free agent has been permanently removed."
+      });
+    } else {
+      const updatedWrestlers = wrestlers.filter(w => w.id !== wrestlerToDelete.id);
+      saveWrestlers(updatedWrestlers);
+      toast({
+        title: "Wrestler Removed",
+        description: "Wrestler has been removed from the roster."
+      });
+    }
+    
+    setIsDeleteConfirmOpen(false);
+    setWrestlerToDelete(null);
+  };
+
   const deleteWrestler = (id: string) => {
     const updatedWrestlers = wrestlers.filter(w => w.id !== id);
     saveWrestlers(updatedWrestlers);
@@ -311,7 +342,7 @@ export const RosterManager = () => {
               size="sm" 
               variant="ghost" 
               className="text-red-400 hover:bg-red-500/20"
-              onClick={() => showFreeAgents ? deleteFreeAgent(wrestler.id) : deleteWrestler(wrestler.id)}
+              onClick={() => confirmDeleteWrestler(wrestler, showFreeAgents)}
             >
               <Trash2 className="w-4 h-4" />
             </Button>
@@ -728,6 +759,21 @@ export const RosterManager = () => {
           </CardContent>
         </Card>
       )}
+
+      <ConfirmDialog
+        isOpen={isDeleteConfirmOpen}
+        onOpenChange={setIsDeleteConfirmOpen}
+        title="Delete Wrestler"
+        description={
+          wrestlerToDelete?.isFreeAgent
+            ? `Are you sure you want to permanently delete ${wrestlerToDelete.name}? This action cannot be undone.`
+            : `Are you sure you want to delete ${wrestlerToDelete?.name} from the roster? This action cannot be undone.`
+        }
+        onConfirm={handleDeleteConfirm}
+        confirmText="Delete"
+        cancelText="Cancel"
+        destructive={true}
+      />
     </div>
   );
 };
