@@ -13,9 +13,11 @@ import { Storylines } from "@/components/Storylines";
 import { DataMigrationNotice } from "@/components/DataMigrationNotice";
 import { Trophy, Users, Calendar, Zap, BarChart3, Settings as SettingsIcon, Download, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const { wrestlers, shows, championships, rivalries, saveShows, saveChampionships, saveRivalries } = useSupabaseData();
   const { toast } = useToast();
 
   const handleExportData = () => {
@@ -44,6 +46,33 @@ const Index = () => {
       description: "Your wrestling promotion data has been downloaded successfully.",
     });
   };
+
+  // Hydrate localStorage from Supabase so legacy components see data
+  useEffect(() => {
+    try {
+      if (wrestlers) localStorage.setItem("wrestlers", JSON.stringify(wrestlers));
+      if (shows) localStorage.setItem("shows", JSON.stringify(shows));
+      if (championships) localStorage.setItem("championships", JSON.stringify(championships));
+      if (rivalries) localStorage.setItem("rivalries", JSON.stringify(rivalries));
+    } catch {}
+  }, [wrestlers, shows, championships, rivalries]);
+
+  // Mirror localStorage writes back to Supabase for sync
+  useEffect(() => {
+    const originalSetItem = localStorage.setItem;
+    localStorage.setItem = function(key: string, value: string) {
+      originalSetItem.apply(this, [key, value]);
+      try {
+        if (key === 'shows') saveShows(JSON.parse(value));
+        if (key === 'championships') saveChampionships(JSON.parse(value));
+        if (key === 'rivalries') saveRivalries(JSON.parse(value));
+      } catch {}
+    } as any;
+
+    return () => {
+      localStorage.setItem = originalSetItem;
+    };
+  }, [saveShows, saveChampionships, saveRivalries]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900">

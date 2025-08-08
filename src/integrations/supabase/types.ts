@@ -81,36 +81,42 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          end_date: string | null
           id: string
           intensity: number | null
           name: string
           participants: string[]
           start_date: string | null
           status: string | null
+          timeline: Json | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           description?: string | null
+          end_date?: string | null
           id?: string
           intensity?: number | null
           name: string
           participants: string[]
           start_date?: string | null
           status?: string | null
+          timeline?: Json | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           description?: string | null
+          end_date?: string | null
           id?: string
           intensity?: number | null
           name?: string
           participants?: string[]
           start_date?: string | null
           status?: string | null
+          timeline?: Json | null
           updated_at?: string
           user_id?: string
         }

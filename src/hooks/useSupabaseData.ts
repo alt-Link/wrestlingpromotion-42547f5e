@@ -48,7 +48,9 @@ interface Rivalry {
   intensity: number;
   status: string;
   startDate?: string;
+  endDate?: string;
   description?: string;
+  timeline?: any[];
 }
 
 export const useSupabaseData = () => {
@@ -141,7 +143,9 @@ export const useSupabaseData = () => {
         const rivalriesWithUserId = localRivalries.map((rivalry: any) => ({
           ...rivalry,
           user_id: user.id,
-          start_date: rivalry.startDate
+          start_date: rivalry.startDate,
+          end_date: rivalry.endDate,
+          timeline: rivalry.timeline || []
         }));
         await supabase.from('rivalries').insert(rivalriesWithUserId);
         didMigrate = true;
@@ -222,9 +226,16 @@ export const useSupabaseData = () => {
       }
 
       if (rivalriesResult.data) {
-        const processedRivalries = rivalriesResult.data.map(rivalry => ({
-          ...rivalry,
-          startDate: rivalry.start_date
+        const processedRivalries: Rivalry[] = rivalriesResult.data.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          participants: Array.isArray(r.participants) ? r.participants : [],
+          intensity: r.intensity ?? 1,
+          status: r.status ?? 'Active',
+          startDate: r.start_date ?? undefined,
+          endDate: r.end_date ?? undefined,
+          description: r.description ?? undefined,
+          timeline: Array.isArray(r.timeline) ? (r.timeline as any[]) : []
         }));
         setRivalries(processedRivalries);
       }
@@ -337,7 +348,9 @@ export const useSupabaseData = () => {
         const rivalriesToInsert = newRivalries.map(rivalry => ({
           ...rivalry,
           user_id: user.id,
-          start_date: rivalry.startDate
+          start_date: rivalry.startDate,
+          end_date: rivalry.endDate,
+          timeline: rivalry.timeline || []
         }));
         await supabase.from('rivalries').insert(rivalriesToInsert);
       }
