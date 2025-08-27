@@ -5,9 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Settings as SettingsIcon, Download, Upload, Trash2, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useSupabaseData } from "@/hooks/useSupabaseData";
 
 export const Settings = () => {
   const { toast } = useToast();
+  const { saveWrestlers, saveShows, saveChampionships, saveRivalries } = useSupabaseData();
 
   const handleImportData = () => {
     const input = document.createElement('input');
@@ -17,15 +19,15 @@ export const Settings = () => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = async (event) => {
           try {
             const data = JSON.parse(event.target?.result as string);
             
-            // Import data to localStorage
-            if (data.wrestlers) localStorage.setItem("wrestlers", JSON.stringify(data.wrestlers));
-            if (data.championships) localStorage.setItem("championships", JSON.stringify(data.championships));
-            if (data.shows) localStorage.setItem("shows", JSON.stringify(data.shows));
-            if (data.rivalries) localStorage.setItem("rivalries", JSON.stringify(data.rivalries));
+            // Import data to Supabase using save functions
+            if (data.wrestlers) await saveWrestlers(data.wrestlers);
+            if (data.championships) await saveChampionships(data.championships);
+            if (data.shows) await saveShows(data.shows);
+            if (data.rivalries) await saveRivalries(data.rivalries);
             
             toast({
               title: "Data Imported",
