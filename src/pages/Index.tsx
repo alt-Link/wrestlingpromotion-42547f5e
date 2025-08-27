@@ -10,7 +10,6 @@ import { CalendarView } from "@/components/CalendarView";
 import { PromotionStats } from "@/components/PromotionStats";
 import { Settings } from "@/components/Settings";
 import { Storylines } from "@/components/Storylines";
-import { DataMigrationNotice } from "@/components/DataMigrationNotice";
 import { Trophy, Users, Calendar, Zap, BarChart3, Settings as SettingsIcon, Download, BookOpen } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSupabaseData } from "@/hooks/useSupabaseData";
@@ -21,12 +20,12 @@ const Index = () => {
   const { toast } = useToast();
 
   const handleExportData = () => {
-    // Get promotion data from localStorage
+    // Export data from Supabase instead of localStorage
     const promotionData = {
-      wrestlers: JSON.parse(localStorage.getItem("wrestlers") || "[]"),
-      championships: JSON.parse(localStorage.getItem("championships") || "[]"),
-      shows: JSON.parse(localStorage.getItem("shows") || "[]"),
-      rivalries: JSON.parse(localStorage.getItem("rivalries") || "[]"),
+      wrestlers: wrestlers || [],
+      championships: championships || [],
+      shows: shows || [],
+      rivalries: rivalries || [],
       exportDate: new Date().toISOString()
     };
 
@@ -104,7 +103,6 @@ const Index = () => {
           </div>
         </header>
 
-        <DataMigrationNotice />
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-8 mb-8 bg-slate-800/50 border border-slate-600/30">
             <TabsTrigger value="dashboard" className="data-[state=active]:bg-slate-600">
